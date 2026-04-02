@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Organizations — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+let allOrgs=[];
+
+document.addEventListener('DOMContentLoaded', () => {
+  const u = initAppShell('Organizations');
+  if (!u) return;
+  allOrgs = DB.get('organizations')||[];
+  render(allOrgs);
+});
+
+function filter() {
+  const q = document.getElementById('srch').value.toLowerCase();
+  render(q ? allOrgs.filter(o=>[o.orgName,o.industry,o.requiredSkills,o.description].join(' ').toLowerCase().includes(q)) : allOrgs);
+}
+
+function render(orgs) {
+  const el = document.getElementById('pageContent');
+  const cards = orgs.map(o=>{
+    const skills = split(o.requiredSkills);
+    const tags = skills.slice(0,5).map(s=>`<span class="tag">${s}</span>`).join('');
+    const extra = skills.length>5 ? `<span class="tag">+${skills.length-5}</span>` : '';
+    return `<div class="card hover">
+      <div class="d-flex align-center justify-between mb-2">
+        <div class="d-flex align-center gap-2">
+          <div class="av av-green" style="width:38px;height:38px;border-radius:8px;font-size:1rem">🏢</div>
+          <div>
+            <h3 style="margin:0;font-size:.95rem">${o.orgName||'Unnamed'}</h3>
+            <p class="text-xs text-muted">${o.industry||'Industry not set'}</p>
+          </div>
+        </div>
+        <span class="badge badge-blue">${o.positions||1} pos.</span>
+      </div>
+      ${o.description?`<p class="text-sm" style="color:var(--ink2);line-height:1.55;margin-bottom:.75rem">${o.description.slice(0,130)}${o.description.length>130?'…':''}</p>`:''}
+      <p class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700">Required Skills</p>
+      <div class="tags mb-2">${tags}${extra}${!o.requiredSkills?'<span class="text-xs text-muted">None</span>':''}</div>
+      ${o.contactPerson||o.phone?`<div class="divider"></div><p class="text-xs text-muted">📞 ${o.contactPerson||''}${o.phone?' · '+o.phone:''}</p>`:''}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="page-header">
+      <div class="page-header-left"><h1>Registered Organizations</h1><p>${orgs.length} organization(s) found</p></div>
+      <div class="table-search-wrap" style="background:var(--ink);border-radius:8px;padding:2px 0">
+        <span class="table-search-icon" style="color:rgba(255,255,255,.4)">🔍</span>
+        <input id="srch" class="table-search" placeholder="Search name, industry, skills…" oninput="filter()" style="width:220px">
+      </div>
+    </div>
+    ${orgs.length?`<div class="card-grid">${cards}</div>`:`<div class="empty"><div class="empty-icon">🏢</div><h3>No organizations found</h3><p>Try a different search term.</p></div>`}`;
+}
+</script>
+</body>
+</html>

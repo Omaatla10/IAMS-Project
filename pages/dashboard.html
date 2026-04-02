@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Dashboard — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const u = initAppShell('Dashboard');
+  if (!u) return;
+  const el = document.getElementById('pageContent');
+
+  if (u.role==='coordinator')    renderCoordinator(u, el);
+  else if (u.role==='student')   renderStudent(u, el);
+  else if (u.role==='organization') renderOrg(u, el);
+});
+
+function renderCoordinator(u, el) {
+  const students   = DB.get('students')     ||[];
+  const orgs       = DB.get('organizations')||[];
+  const placements = DB.get('placements')   ||[];
+  const unmatched  = students.filter(s=>!placements.find(p=>p.studentId===s.id)).length;
+  el.innerHTML = `
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Good to see you, ${u.fullName||'Coordinator'}</h1>
+        <p>${u.department||'Department not set'} &nbsp;·&nbsp; ${u.staffId||''}</p>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${students.length}</div><div class="stat-lbl">Students</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${orgs.length}</div><div class="stat-lbl">Organizations</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--amber)">${placements.length}</div><div class="stat-lbl">Placed</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--red)">${unmatched}</div><div class="stat-lbl">Unmatched</div></div>
+    </div>
+    <div class="card-grid">
+      <a href="students.html" class="action-card" style="--ac:var(--blue)"><div class="ac-icon">🎓</div><h3>View Students</h3><p>Browse, search and filter all registered students and their skill profiles.</p><span class="ac-arrow">↗</span></a>
+      <a href="organizations.html" class="action-card" style="--ac:var(--green)"><div class="ac-icon">🏢</div><h3>View Organizations</h3><p>Browse registered organizations, their required skills and open positions.</p><span class="ac-arrow">↗</span></a>
+      <a href="match.html" class="action-card" style="--ac:var(--amber)"><div class="ac-icon">🎯</div><h3>Run Matching</h3><p>Execute the skill-based algorithm to assign students to organizations.</p><span class="ac-arrow">↗</span></a>
+      <a href="placements.html" class="action-card" style="--ac:#7c3aed"><div class="ac-icon">📋</div><h3>View Placements</h3><p>Review match scores, confirm allocations, and track placement status.</p><span class="ac-arrow">↗</span></a>
+    </div>`;
+}
+
+function renderStudent(u, el) {
+  const students   = DB.get('students')     ||[];
+  const placements = DB.get('placements')   ||[];
+  const orgs       = DB.get('organizations')||[];
+  const student    = students.find(s=>s.userId===u.id||s.id===u.studentId||s.id===u.id);
+  if (!student) { el.innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><h3>Profile incomplete</h3><p><a href="profile.html" style="color:var(--blue)">Complete your profile →</a></p></div>`; return; }
+  const placement = placements.find(p=>p.studentId===student.id);
+  const org = placement ? orgs.find(o=>o.id===placement.orgId) : null;
+  const skills = split(student.skills);
+  const prefs  = split(student.preferences);
+  el.innerHTML = `
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Hello, ${student.fullName||'Student'}</h1>
+        <p>${student.studentId} &nbsp;·&nbsp; ${student.department||'Department not set'}</p>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${skills.length}</div><div class="stat-lbl">Skills Listed</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${student.gpa||'—'}</div><div class="stat-lbl">GPA</div></div>
+      <div class="stat-card" style="color:${placement?'var(--green)':'var(--amber)'}"><div class="stat-val">${placement?'Placed':'Pending'}</div><div class="stat-lbl">Placement</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="card">
+        <h3>My Skills</h3>
+        ${skills.length?`<div class="tags">${skills.map(s=>`<span class="tag">${s}</span>`).join('')}</div>`:'<p class="text-muted text-sm">No skills listed yet.</p>'}
+        ${prefs.length?`<div class="divider"></div><p class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700">Preferences</p><div class="tags">${prefs.map(p=>`<span class="tag" style="border-color:var(--green-bd);color:var(--green)">${p}</span>`).join('')}</div>`:''}
+        <div class="mt-3"><a href="profile.html" class="btn btn-outline btn-sm">Edit Profile</a></div>
+      </div>
+      <div class="card">
+        <h3>My Placement</h3>
+        ${placement&&org?`
+          <div style="padding:1rem;background:var(--cream);border:1px solid var(--border);border-radius:8px;margin-bottom:1rem">
+            <p class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700">Allocated Organization</p>
+            <p style="font-family:var(--serif);font-size:1.1rem">${org.orgName}</p>
+            <p class="text-muted text-sm">${org.industry||''}</p>
+            <span class="badge ${placement.status==='confirmed'?'badge-green':'badge-amber'} mt-2">${placement.status==='confirmed'?'✓ Confirmed':'⏳ Pending'}</span>
+            <div class="score-wrap mt-2"><div class="score-bar"><div class="score-fill" style="width:${placement.score}%"></div></div><span class="score-num">${placement.score}%</span></div>
+          </div>
+          <a href="my-placement.html" class="btn btn-blue btn-sm">View Full Details →</a>`
+        :`<div class="empty" style="padding:1.5rem 0"><div class="empty-icon">⏳</div><p>Not matched yet. The coordinator will run the algorithm soon.</p></div>
+          <a href="organizations.html" class="btn btn-outline btn-sm">Browse Organizations</a>`}
+      </div>
+    </div>`;
+}
+
+function renderOrg(u, el) {
+  const orgs  = DB.get('organizations')||[];
+  const org   = orgs.find(o=>o.userId===u.id||o.id===u.orgId||o.id===u.id);
+  if (!org) { el.innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><h3>Profile incomplete</h3><p><a href="profile.html" style="color:var(--blue)">Complete your profile →</a></p></div>`; return; }
+  const placements = DB.get('placements')||[];
+  const myP = placements.filter(p=>p.orgId===org.id);
+  const students = DB.get('students')||[];
+  const skills = split(org.requiredSkills);
+  el.innerHTML = `
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>${org.orgName||'Organization'}</h1>
+        <p>${org.industry||'Industry not set'} &nbsp;·&nbsp; ${u.email}</p>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${org.positions||1}</div><div class="stat-lbl">Positions</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${myP.length}</div><div class="stat-lbl">Allocated</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--amber)">${skills.length}</div><div class="stat-lbl">Req. Skills</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+      <div class="card">
+        <h3>Required Skills</h3>
+        ${skills.length?`<div class="tags">${skills.map(s=>`<span class="tag">${s}</span>`).join('')}</div>`:'<p class="text-muted text-sm">None listed.</p>'}
+        ${org.description?`<div class="divider"></div><p class="text-sm" style="color:var(--ink2);line-height:1.65">${org.description}</p>`:''}
+        <div class="mt-3"><a href="profile.html" class="btn btn-outline btn-sm">Edit Profile</a></div>
+      </div>
+      <div class="card">
+        <h3>Allocated Students</h3>
+        ${myP.length?myP.map(p=>{const s=students.find(x=>x.id===p.studentId);return`<div style="padding:.75rem;background:var(--cream);border-radius:8px;margin-bottom:8px;border:1px solid var(--border)"><div class="d-flex align-center justify-between"><div><p style="font-weight:600;font-size:.88rem">${s?.fullName||'Student'}</p><p class="text-xs text-muted">${s?.studentId||''}</p></div><span class="badge ${p.status==='confirmed'?'badge-green':'badge-amber'}">${p.status}</span></div><div class="score-wrap mt-2"><div class="score-bar"><div class="score-fill" style="width:${p.score}%"></div></div><span class="score-num">${p.score}%</span></div></div>`;}).join(''):'<div class="empty" style="padding:1.5rem 0"><div class="empty-icon">⏳</div><p>No students allocated yet.</p></div>'}
+      </div>
+    </div>`;
+}
+</script>
+</body>
+</html>

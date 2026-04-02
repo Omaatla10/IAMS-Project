@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>My Placement — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const u = initAppShell('My Placement');
+  if (!u) return;
+
+  const students   = DB.get('students')      ||[];
+  const placements = DB.get('placements')    ||[];
+  const orgs       = DB.get('organizations') ||[];
+  const student    = students.find(s=>s.userId===u.id||s.id===u.studentId||s.id===u.id);
+  const placement  = student ? placements.find(p=>p.studentId===student.id) : null;
+  const org        = placement ? orgs.find(o=>o.id===placement.orgId) : null;
+  const el         = document.getElementById('pageContent');
+
+  el.innerHTML = `
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>My Placement</h1>
+        <p>Your industrial attachment allocation result</p>
+      </div>
+    </div>`;
+
+  if (!placement || !org) {
+    el.innerHTML += `
+      <div class="empty">
+        <div class="empty-icon">⏳</div>
+        <h3>Not matched yet</h3>
+        <p>You haven't been matched to an organization yet.<br>The coordinator will run the matching algorithm soon.</p>
+        <div class="d-flex gap-2 mt-3" style="justify-content:center;flex-wrap:wrap">
+          <a href="dashboard.html" class="btn btn-outline">← Dashboard</a>
+          <a href="organizations.html" class="btn btn-blue">Browse Organizations</a>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const date = new Date(placement.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const skills = split(org.requiredSkills);
+
+  el.innerHTML += `
+    <div class="placement-card">
+      <div class="placement-accent"></div>
+      <div class="placement-body">
+        <div class="placement-top">
+          <div class="placement-org">
+            <h2>${org.orgName}</h2>
+            <p>${org.industry||'Industry not specified'}</p>
+          </div>
+          <span class="badge ${placement.status==='confirmed'?'badge-green':'badge-amber'}">
+            ${placement.status==='confirmed'?'✓ Confirmed':'⏳ Awaiting Confirmation'}
+          </span>
+        </div>
+
+        <div class="placement-score-row">
+          <div class="placement-score-n">${placement.score}%</div>
+          <div class="placement-score-right">
+            <div class="placement-score-lbl">Match Score</div>
+            <div class="score-bar" style="height:8px"><div class="score-fill" style="width:${placement.score}%"></div></div>
+            <p class="text-xs text-muted mt-1">Based on skill overlap, industry preference, and GPA.</p>
+          </div>
+        </div>
+
+        <div class="placement-meta">
+          <div class="pmeta-item"><div class="k">Contact Person</div><div class="v">${org.contactPerson||'—'}</div></div>
+          <div class="pmeta-item"><div class="k">Phone</div><div class="v">${org.phone||'—'}</div></div>
+          <div class="pmeta-item"><div class="k">Industry</div><div class="v">${org.industry||'—'}</div></div>
+          <div class="pmeta-item"><div class="k">Positions Available</div><div class="v">${org.positions||'1'}</div></div>
+          <div class="pmeta-item"><div class="k">Matched On</div><div class="v">${date}</div></div>
+          <div class="pmeta-item"><div class="k">Status</div><div class="v"><span class="badge ${placement.status==='confirmed'?'badge-green':'badge-amber'}">${placement.status}</span></div></div>
+        </div>
+
+        ${org.description?`<div class="divider"></div><p class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700">About the Organization</p><p class="text-sm" style="color:var(--ink2);line-height:1.7">${org.description}</p>`:''}
+
+        ${skills.length?`<div class="divider"></div><p class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700">Required Skills</p><div class="tags">${skills.map(s=>`<span class="tag">${s}</span>`).join('')}</div>`:''}
+
+        <div class="divider"></div>
+        <a href="dashboard.html" class="btn btn-outline btn-sm">← Back to Dashboard</a>
+      </div>
+    </div>`;
+});
+</script>
+</body>
+</html>
