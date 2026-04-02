@@ -540,3 +540,9 @@ footer { background:var(--ink); color:rgba(255,255,255,0.45); padding:2rem 2.5re
   .hero-cta { flex-direction:column; align-items:center; }
   .hero-cta .btn { width:100%; max-width:280px; }
 }
+
+img {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
