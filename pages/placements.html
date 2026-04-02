@@ -7,26 +7,25 @@
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script src="../js/sidebar.js"></script>
 <script>
 let currentUser;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   currentUser = initAppShell('Placements');
   if (!currentUser) return;
-  renderPlacements();
+  await renderPlacements();
 });
 
-function renderPlacements() {
-  const placements = DB.get('placements')    ||[];
-  const students   = DB.get('students')      ||[];
-  const orgs       = DB.get('organizations') ||[];
+async function renderPlacements() {
+  const [placements, students, orgs] = await Promise.all([getPlacements(), getStudents(), getOrganizations()]);
   const el = document.getElementById('pageContent');
 
   const rows = placements.map(p=>{
-    const s = students.find(x=>x.id===p.studentId);
-    const o = orgs.find(x=>x.id===p.orgId);
+    const s = students.find(x=>x.id===p.student_id);
+    const o = orgs.find(x=>x.id===p.org_id);
     const init = (s?.fullName||'S')[0].toUpperCase();
     const confirmBtn = currentUser?.role==='coordinator' && p.status!=='confirmed'
       ? `<button class="btn btn-success btn-sm" onclick="confirm_('${p.id}')">✓ Confirm</button>`

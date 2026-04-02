@@ -1,147 +1,185 @@
 'use strict';
 
-/* ── Storage ── */
-const DB = {
-  get:  k      => JSON.parse(localStorage.getItem('iams_'+k)||'null'),
-  set:  (k,v)  => localStorage.setItem('iams_'+k, JSON.stringify(v)),
-  push: (k,v)  => { const a=DB.get(k)||[]; a.push(v); DB.set(k,a); return a; },
-};
+const SUPABASE_URL  = 'https://odmsergmblmoudxoyppq.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_x6-e27epf4HXE6OM2TAssg_bjPqxH1h';
 
-/* ── Auth ── */
+const _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+async function _q(fn) {
+  try { const { data, error } = await fn(); if (error) throw error; return data || []; }
+  catch(e) { console.error('Supabase:', e.message); return []; }
+}
+
+// ════════════════════════════════════════════
+//  AUTH
+// ════════════════════════════════════════════
 const Auth = {
-  current: ()   => DB.get('user'),
-  login:   u    => DB.set('user', u),
-  logout:  ()   => {
-    DB.set('user',null);
+  current: () => { const r = localStorage.getItem('iams_user'); return r ? JSON.parse(r) : null; },
+  login:   (u) => localStorage.setItem('iams_user', JSON.stringify(u)),
+  logout: async () => {
+    await _sb.auth.signOut();
+    localStorage.removeItem('iams_user');
     const inPages = window.location.pathname.includes('/pages/');
     window.location.href = inPages ? '../index.html' : 'index.html';
   },
-  require: role => {
+  require: (role) => {
     const u = Auth.current();
-    if (!u) { go('../pages/login.html'); return null; }
-    if (role && u.role !== role) { go('../pages/login.html'); return null; }
+    if (!u) { window.location.href = '../pages/login.html'; return null; }
+    if (role && u.role !== role) { window.location.href = '../pages/login.html'; return null; }
     return u;
   }
 };
 
-/* ── Navigation helper ── */
-function go(path) { window.location.href = path; }
-function root() { return window.location.pathname.includes('/pages/') ? '../' : './'; }
+// ════════════════════════════════════════════
+//  LOGIN
+// ════════════════════════════════════════════
+async function loginUser(email, password) {
+  const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+  if (error) throw new Error('Incorrect email or password.');
+  const uid = data.user.id;
+  const profiles = await _q(() => _sb.from('profiles').select('*').eq('id', uid));
+  const prof = profiles[0];
+  if (!prof) throw new Error('Account not found. Please register.');
+  let user = { id: uid, email, role: prof.role };
+  if (prof.role === 'student') {
+    const r = await _q(() => _sb.from('students').select('*').eq('user_id', uid));
+    if (r[0]) Object.assign(user, r[0], { id: uid });
+  } else if (prof.role === 'organization') {
+    const r = await _q(() => _sb.from('organizations').select('*').eq('user_id', uid));
+    if (r[0]) Object.assign(user, r[0], { id: uid });
+  } else if (prof.role === 'coordinator') {
+    const r = await _q(() => _sb.from('coordinators').select('*').eq('user_id', uid));
+    if (r[0]) Object.assign(user, r[0], { id: uid });
+  }
+  Auth.login(user);
+  return user;
+}
 
-/* ── Alert helper ── */
-function showAlert(containerId, msg, type='info') {
+// ════════════════════════════════════════════
+//  REGISTER
+// ════════════════════════════════════════════
+async function registerUser(email, password, role) {
+  const { data, error } = await _sb.auth.signUp({ email, password });
+  if (error) throw new Error(error.message);
+  const uid = data.user.id;
+  await _q(() => _sb.from('profiles').insert({ id: uid, email, role }));
+  let user = { id: uid, email, role };
+  if (role === 'student') {
+    const r = await _q(() => _sb.from('students').insert({ user_id: uid, email, full_name: '', student_id: 'STU' + uid.slice(-6), department: '', gpa: '', skills: '', preferences: '', phone: '' }).select());
+    if (r[0]) Object.assign(user, r[0], { id: uid });
+  } else if (role === 'organization') {
+    const r = await _q(() => _sb.from('organizations').insert({ user_id: uid, email, org_name: '', industry: '', positions: 1, required_skills: '', contact_person: '', phone: '', description: '' }).select());
+    if (r[0]) Object.assign(user, r[0], { id: uid });
+  } else if (role === 'coordinator') {
+    const r = await _q(() => _sb.from('coordinators').insert({ user_id: uid, email, full_name: '', staff_id: 'STAFF' + uid.slice(-4), department: '', phone: '' }).select());
+    if (r[0]) Object.assign(user, r[0], { id: uid });
+  }
+  Auth.login(user);
+  return user;
+}
+
+// ════════════════════════════════════════════
+//  DATA FETCHERS
+// ════════════════════════════════════════════
+async function getStudents()      { return _q(() => _sb.from('students').select('*').order('full_name')); }
+async function getOrganizations() { return _q(() => _sb.from('organizations').select('*').order('org_name')); }
+async function getPlacements()    { return _q(() => _sb.from('placements').select('*')); }
+async function getStudentByUserId(uid) { const r = await _q(() => _sb.from('students').select('*').eq('user_id', uid)); return r[0] || null; }
+async function getOrgByUserId(uid)     { const r = await _q(() => _sb.from('organizations').select('*').eq('user_id', uid)); return r[0] || null; }
+async function getCoordByUserId(uid)   { const r = await _q(() => _sb.from('coordinators').select('*').eq('user_id', uid)); return r[0] || null; }
+
+// ════════════════════════════════════════════
+//  PROFILE SAVE
+// ════════════════════════════════════════════
+async function saveStudentProfile(uid, data) {
+  await _q(() => _sb.from('students').update(data).eq('user_id', uid));
+  const u = await getStudentByUserId(uid);
+  Auth.login({ ...Auth.current(), ...u, id: Auth.current().id });
+}
+async function saveOrgProfile(uid, data) {
+  await _q(() => _sb.from('organizations').update(data).eq('user_id', uid));
+  const u = await getOrgByUserId(uid);
+  Auth.login({ ...Auth.current(), ...u, id: Auth.current().id });
+}
+async function saveCoordProfile(uid, data) {
+  await _q(() => _sb.from('coordinators').update(data).eq('user_id', uid));
+  const u = await getCoordByUserId(uid);
+  Auth.login({ ...Auth.current(), ...u, id: Auth.current().id });
+}
+
+// ════════════════════════════════════════════
+//  MATCHING ALGORITHM
+// ════════════════════════════════════════════
+async function runMatching() {
+  const students = await getStudents();
+  const orgs     = await getOrganizations();
+  const existing = await getPlacements();
+  const placedIds = new Set(existing.map(p => p.student_id));
+  const unmatched = students.filter(s => !placedIds.has(s.id));
+  const cap = {};
+  orgs.forEach(o => { const taken = existing.filter(p => p.org_id === o.id).length; cap[o.id] = Math.max(0, (parseInt(o.positions) || 1) - taken); });
+  const inserts = [];
+  unmatched.forEach(student => {
+    const sSkills = new Set(split(student.skills).map(x => x.toLowerCase()));
+    const sPrefs  = split(student.preferences).map(x => x.toLowerCase());
+    let best = null, bestScore = -1;
+    orgs.forEach(org => {
+      if ((cap[org.id] || 0) <= 0) return;
+      const oSkills = split(org.required_skills);
+      let ss = 10;
+      if (sSkills.size && oSkills.length) { const ov = oSkills.filter(sk => sSkills.has(sk.toLowerCase())).length; ss = (ov / oSkills.length) * 70; }
+      const pref = sPrefs.includes((org.industry || '').toLowerCase()) ? 20 : 0;
+      const gpa  = Math.min((parseFloat(student.gpa) || 0) * 2.5, 10);
+      const score = Math.min(Math.round(ss + pref + gpa), 100);
+      if (score > bestScore) { bestScore = score; best = org; }
+    });
+    if (best) { inserts.push({ student_id: student.id, org_id: best.id, score: bestScore, status: 'pending' }); cap[best.id]--; }
+  });
+  if (inserts.length > 0) await _q(() => _sb.from('placements').insert(inserts));
+  return inserts.length;
+}
+
+async function confirmPlacement(id) { await _q(() => _sb.from('placements').update({ status: 'confirmed' }).eq('id', id)); }
+async function clearPlacements()    { await _q(() => _sb.from('placements').delete().neq('id', '00000000-0000-0000-0000-000000000000')); }
+
+// ════════════════════════════════════════════
+//  SHARED HELPERS
+// ════════════════════════════════════════════
+function split(str) { return (str || '').split(',').map(s => s.trim()).filter(Boolean); }
+function go(path)   { window.location.href = path; }
+
+function showAlert(containerId, msg, type = 'info') {
   const c = document.getElementById(containerId);
   if (!c) return;
   const el = document.createElement('div');
   el.className = `alert alert-${type}`;
   el.innerHTML = `${msg}<button class="alert-dismiss" onclick="this.parentElement.remove()">✕</button>`;
   c.prepend(el);
-  setTimeout(()=>el.remove(), 6000);
+  setTimeout(() => el.remove(), 6000);
 }
 
-/* ── Sidebar toggle ── */
 function initSidebar() {
   const toggle  = document.getElementById('sbToggle');
   const sidebar = document.getElementById('sidebar');
   const overlay = document.getElementById('sbOverlay');
-  if (!toggle||!sidebar) return;
-  function open()  { sidebar.classList.add('open'); overlay?.classList.add('open'); document.body.style.overflow='hidden'; }
-  function close() { sidebar.classList.remove('open'); overlay?.classList.remove('open'); document.body.style.overflow=''; }
-  toggle.addEventListener('click', ()=> sidebar.classList.contains('open') ? close() : open());
+  if (!toggle || !sidebar) return;
+  const open  = () => { sidebar.classList.add('open');    overlay?.classList.add('open');    document.body.style.overflow = 'hidden'; };
+  const close = () => { sidebar.classList.remove('open'); overlay?.classList.remove('open'); document.body.style.overflow = ''; };
+  toggle.addEventListener('click', () => sidebar.classList.contains('open') ? close() : open());
   overlay?.addEventListener('click', close);
 }
 
-/* ── Render sidebar user info ── */
 function renderSidebarUser() {
   const u = Auth.current();
   if (!u) return;
   const nameEl = document.getElementById('sbUserName');
   const roleEl = document.getElementById('sbUserRole');
   const avEl   = document.getElementById('sbUserAv');
-  if (nameEl) nameEl.textContent = u.fullName || u.orgName || u.email.split('@')[0];
+  if (nameEl) nameEl.textContent = u.full_name || u.org_name || u.fullName || u.orgName || u.email?.split('@')[0];
   if (roleEl) roleEl.textContent = u.role;
-  if (avEl)   avEl.textContent   = u.role==='student'?'🎓': u.role==='organization'?'🏢':'⚙️';
-  // Highlight active nav link
+  if (avEl)   avEl.textContent   = u.role === 'student' ? '🎓' : u.role === 'organization' ? '🏢' : '⚙️';
   const path = window.location.pathname.split('/').pop();
-  document.querySelectorAll('.sb-link[data-page]').forEach(a => {
-    if (a.dataset.page === path) a.classList.add('active');
-  });
+  document.querySelectorAll('.sb-link[data-page]').forEach(a => { if (a.dataset.page === path) a.classList.add('active'); });
 }
 
-/* ── Split comma string ── */
-function split(str) { return (str||'').split(',').map(s=>s.trim()).filter(Boolean); }
-
-/* ── Matching algorithm ──
-   Score = skill_overlap/org_required * 70
-           + pref_bonus 20
-           + gpa_bonus (max 10)
-── */
-function runMatching() {
-  const students   = DB.get('students')      || [];
-  const orgs       = DB.get('organizations') || [];
-  const existing   = DB.get('placements')    || [];
-  const placedIds  = new Set(existing.map(p=>p.studentId));
-  const unmatched  = students.filter(s=>!placedIds.has(s.id));
-
-  const cap = {};
-  orgs.forEach(o => {
-    const taken = existing.filter(p=>p.orgId===o.id).length;
-    cap[o.id] = Math.max(0,(parseInt(o.positions)||1)-taken);
-  });
-
-  const newP = [];
-  unmatched.forEach(s => {
-    const sSkills = new Set(split(s.skills).map(x=>x.toLowerCase()));
-    const sPrefs  = split(s.preferences).map(x=>x.toLowerCase());
-    let best=null, bestScore=-1;
-
-    orgs.forEach(o => {
-      if ((cap[o.id]||0)<=0) return;
-      const oSkills = split(o.requiredSkills);
-      let skillScore = 10;
-      if (sSkills.size && oSkills.length) {
-        const overlap = oSkills.filter(sk=>sSkills.has(sk.toLowerCase())).length;
-        skillScore = (overlap/oSkills.length)*70;
-      }
-      const pref    = sPrefs.includes((o.industry||'').toLowerCase()) ? 20 : 0;
-      const gpa     = Math.min((parseFloat(s.gpa)||0)*2.5, 10);
-      const score   = Math.min(Math.round(skillScore+pref+gpa), 100);
-      if (score>bestScore) { bestScore=score; best=o; }
-    });
-
-    if (best) {
-      newP.push({ id:'p_'+Date.now()+'_'+Math.random().toString(36).slice(2,6), studentId:s.id, orgId:best.id, score:bestScore, status:'pending', createdAt:new Date().toISOString() });
-      cap[best.id]--;
-    }
-  });
-
-  DB.set('placements', [...existing, ...newP]);
-  return newP.length;
-}
-
-/* ── Seed demo data ── */
-function seedDemo() {
-  if (DB.get('seeded')) return;
-  const orgs = [
-    {id:'o1',userId:'uo1',email:'bih@example.com',orgName:'Botswana Innovation Hub',industry:'Technology',positions:'3',requiredSkills:'Python, JavaScript, SQL',contactPerson:'Dr. Keamogetse Ntshole',phone:'+267 3181 234',description:'A government-supported technology hub driving innovation across Botswana.',createdAt:new Date().toISOString()},
-    {id:'o2',userId:'uo2',email:'mascom@example.com',orgName:'Mascom Wireless',industry:'Telecommunications',positions:'2',requiredSkills:'Networking, Linux, Python',contactPerson:'Tshepho Moagi',phone:'+267 3950 000',description:"Botswana's leading telecommunications provider with nationwide coverage.",createdAt:new Date().toISOString()},
-    {id:'o3',userId:'uo3',email:'fnbb@example.com',orgName:'First National Bank Botswana',industry:'Finance',positions:'2',requiredSkills:'SQL, Excel, Data Analysis',contactPerson:'Mpho Selelo',phone:'+267 3677 000',description:"One of Botswana's largest commercial banks offering diverse financial services.",createdAt:new Date().toISOString()},
-    {id:'o4',userId:'uo4',email:'bpc@example.com',orgName:'Botswana Power Corporation',industry:'Engineering',positions:'1',requiredSkills:'Python, AutoCAD, Electrical',contactPerson:'Lesego Phiri',phone:'+267 3603 000',description:'National utility responsible for power generation and distribution.',createdAt:new Date().toISOString()},
-  ];
-  const students = [
-    {id:'s1',userId:'us1',email:'lasswell@ub.ac.bw',fullName:'Lasswell Mahosi',studentId:'202301477',department:'Computer Science',gpa:'3.7',skills:'Python, MySQL, JavaScript, HTML',preferences:'Technology, Finance',phone:'+267 71234567',createdAt:new Date().toISOString()},
-    {id:'s2',userId:'us2',email:'jayson@ub.ac.bw',fullName:'Jayson Maleya',studentId:'202308195',department:'Computer Science',gpa:'3.4',skills:'Python, Networking, Linux',preferences:'Telecommunications, Technology',phone:'+267 72345678',createdAt:new Date().toISOString()},
-    {id:'s3',userId:'us3',email:'kgotla@ub.ac.bw',fullName:'Kgotla Mogaetsho',studentId:'202005511',department:'Computer Science',gpa:'3.2',skills:'SQL, Excel, Data Analysis',preferences:'Finance, Technology',phone:'+267 73456789',createdAt:new Date().toISOString()},
-    {id:'s4',userId:'us4',email:'ronald@ub.ac.bw',fullName:'Ronald Keoikantse Tumisang',studentId:'201502162',department:'Computer Science',gpa:'3.5',skills:'Python, SQL, JavaScript',preferences:'Technology, Engineering',phone:'+267 74567890',createdAt:new Date().toISOString()},
-    {id:'s5',userId:'us5',email:'sipho@ub.ac.bw',fullName:'Siphosethu Tsela',studentId:'202300252',department:'Computer Science',gpa:'3.6',skills:'HTML, CSS, JavaScript, MySQL',preferences:'Technology',phone:'+267 75678901',createdAt:new Date().toISOString()},
-    {id:'s6',userId:'us6',email:'omatla@ub.ac.bw',fullName:'Omatla Tendai Manyanda',studentId:'202004949',department:'Computer Science',gpa:'3.3',skills:'Python, AutoCAD, Electrical',preferences:'Engineering, Technology',phone:'+267 76789012',createdAt:new Date().toISOString()},
-  ];
-  const users = [
-    {id:'uc1',email:'coordinator@ub.ac.bw',password:'coord123',role:'coordinator',fullName:'Dr. Thabo Molosiwa',staffId:'STAFF001',department:'Computer Science',phone:'+267 3554000'},
-    ...orgs.map(o=>({id:o.userId,email:o.email,password:'org123',role:'organization',orgId:o.id})),
-    ...students.map(s=>({id:s.userId,email:s.email,password:'student123',role:'student',studentId:s.id})),
-  ];
-  DB.set('organizations',orgs); DB.set('students',students); DB.set('users',users); DB.set('placements',[]); DB.set('seeded',true);
-}
-
-document.addEventListener('DOMContentLoaded',()=>{ seedDemo(); initSidebar(); renderSidebarUser(); });
+document.addEventListener('DOMContentLoaded', () => { initSidebar(); renderSidebarUser(); });

@@ -7,10 +7,11 @@
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script src="../js/sidebar.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const u = initAppShell('Match');
   if (!u) return;
   Auth.require('coordinator');
@@ -78,8 +79,9 @@ function renderMatch() {
     </div>`;
 }
 
-function doRun() {
-  const n = runMatching();
+async function doRun() {
+  const btn=document.getElementById('runBtn'); if(btn){btn.textContent='Running…';btn.disabled=true;}
+  const n = await runMatching();
   showAlert('alertBox', `✓ ${n} student(s) successfully matched! <a href="placements.html" style="color:var(--green);font-weight:700">View placements →</a>`, 'success');
   setTimeout(renderMatch, 100);
 }

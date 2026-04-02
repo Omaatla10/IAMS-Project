@@ -73,9 +73,10 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script>
-function doRegister() {
+async function doRegister() {
   const role  = document.querySelector('input[name="role"]:checked')?.value;
   const email = document.getElementById('email').value.trim().toLowerCase();
   const pw    = document.getElementById('password').value;
@@ -84,23 +85,15 @@ function doRegister() {
   if (!email)      { showAlert('alertBox','Please enter your email.','error'); return; }
   if (pw.length<6) { showAlert('alertBox','Password must be at least 6 characters.','error'); return; }
   if (pw!==conf)   { showAlert('alertBox','Passwords do not match.','error'); return; }
-  const users = DB.get('users')||[];
-  if (users.find(u=>u.email.toLowerCase()===email)) { showAlert('alertBox','That email is already registered.','error'); return; }
-
-  const uid = 'u_'+Date.now();
-  const nu  = {id:uid,email,password:pw,role,createdAt:new Date().toISOString()};
-  if (role==='student') {
-    const sid='s_'+Date.now(); const students=DB.get('students')||[];
-    students.push({id:sid,userId:uid,email,fullName:'',studentId:'STU'+Date.now().toString().slice(-6),department:'',gpa:'',skills:'',preferences:'',phone:'',createdAt:new Date().toISOString()});
-    DB.set('students',students); nu.studentId=sid;
-  } else if (role==='organization') {
-    const oid='o_'+Date.now(); const orgs=DB.get('organizations')||[];
-    orgs.push({id:oid,userId:uid,email,orgName:'',industry:'',positions:'1',requiredSkills:'',contactPerson:'',phone:'',description:'',createdAt:new Date().toISOString()});
-    DB.set('organizations',orgs); nu.orgId=oid;
+  const btn = document.querySelector('button[onclick="doRegister()"]');
+  if (btn) { btn.textContent='Creating account…'; btn.disabled=true; }
+  try {
+    await registerUser(email, pw, role);
+    window.location.href = 'profile.html?new=1';
+  } catch(err) {
+    showAlert('alertBox', err.message, 'error');
+    if (btn) { btn.textContent='Create Account →'; btn.disabled=false; }
   }
-  users.push(nu); DB.set('users',users);
-  Auth.login(nu);
-  go('profile.html?new=1');
 }
 </script>
 </body>

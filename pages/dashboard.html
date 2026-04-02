@@ -7,23 +7,22 @@
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script src="../js/sidebar.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const u = initAppShell('Dashboard');
   if (!u) return;
   const el = document.getElementById('pageContent');
 
-  if (u.role==='coordinator')    renderCoordinator(u, el);
-  else if (u.role==='student')   renderStudent(u, el);
-  else if (u.role==='organization') renderOrg(u, el);
+  if (u.role==='coordinator')    await renderCoordinator(u, el);
+  else if (u.role==='student')   await renderStudent(u, el);
+  else if (u.role==='organization') await renderOrg(u, el);
 });
 
-function renderCoordinator(u, el) {
-  const students   = DB.get('students')     ||[];
-  const orgs       = DB.get('organizations')||[];
-  const placements = DB.get('placements')   ||[];
+async function renderCoordinator(u, el) {
+  const [students, orgs, placements] = await Promise.all([getStudents(), getOrganizations(), getPlacements()]);
   const unmatched  = students.filter(s=>!placements.find(p=>p.studentId===s.id)).length;
   el.innerHTML = `
     <div class="page-header">
@@ -46,21 +45,19 @@ function renderCoordinator(u, el) {
     </div>`;
 }
 
-function renderStudent(u, el) {
-  const students   = DB.get('students')     ||[];
-  const placements = DB.get('placements')   ||[];
-  const orgs       = DB.get('organizations')||[];
-  const student    = students.find(s=>s.userId===u.id||s.id===u.studentId||s.id===u.id);
+async function renderStudent(u, el) {
+  const student = await getStudentByUserId(u.id);
+  const [placements, orgs] = await Promise.all([getPlacements(), getOrganizations()]);
   if (!student) { el.innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><h3>Profile incomplete</h3><p><a href="profile.html" style="color:var(--blue)">Complete your profile →</a></p></div>`; return; }
-  const placement = placements.find(p=>p.studentId===student.id);
-  const org = placement ? orgs.find(o=>o.id===placement.orgId) : null;
+  const placement = placements.find(p=>p.student_id===student.id);
+  const org = placement ? orgs.find(o=>o.id===placement.org_id) : null;
   const skills = split(student.skills);
   const prefs  = split(student.preferences);
   el.innerHTML = `
     <div class="page-header">
       <div class="page-header-left">
-        <h1>Hello, ${student.fullName||'Student'}</h1>
-        <p>${student.studentId} &nbsp;·&nbsp; ${student.department||'Department not set'}</p>
+        <h1>Hello, ${student.full_name||'Student'}</h1>
+        <p>${student.student_id} &nbsp;·&nbsp; ${student.department||'Department not set'}</p>
       </div>
     </div>
     <div class="stats-row">
@@ -80,7 +77,7 @@ function renderStudent(u, el) {
         ${placement&&org?`
           <div style="padding:1rem;background:var(--cream);border:1px solid var(--border);border-radius:8px;margin-bottom:1rem">
             <p class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700">Allocated Organization</p>
-            <p style="font-family:var(--serif);font-size:1.1rem">${org.orgName}</p>
+            <p style="font-family:var(--serif);font-size:1.1rem">${org.org_name}</p>
             <p class="text-muted text-sm">${org.industry||''}</p>
             <span class="badge ${placement.status==='confirmed'?'badge-green':'badge-amber'} mt-2">${placement.status==='confirmed'?'✓ Confirmed':'⏳ Pending'}</span>
             <div class="score-wrap mt-2"><div class="score-bar"><div class="score-fill" style="width:${placement.score}%"></div></div><span class="score-num">${placement.score}%</span></div>
@@ -92,18 +89,16 @@ function renderStudent(u, el) {
     </div>`;
 }
 
-function renderOrg(u, el) {
-  const orgs  = DB.get('organizations')||[];
-  const org   = orgs.find(o=>o.userId===u.id||o.id===u.orgId||o.id===u.id);
+async function renderOrg(u, el) {
+  const org = await getOrgByUserId(u.id);
   if (!org) { el.innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><h3>Profile incomplete</h3><p><a href="profile.html" style="color:var(--blue)">Complete your profile →</a></p></div>`; return; }
-  const placements = DB.get('placements')||[];
-  const myP = placements.filter(p=>p.orgId===org.id);
-  const students = DB.get('students')||[];
-  const skills = split(org.requiredSkills);
+  const [placements, students] = await Promise.all([getPlacements(), getStudents()]);
+  const myP = placements.filter(p=>p.org_id===org.id);
+  const skills = split(org.required_skills);
   el.innerHTML = `
     <div class="page-header">
       <div class="page-header-left">
-        <h1>${org.orgName||'Organization'}</h1>
+        <h1>${org.org_name||'Organization'}</h1>
         <p>${org.industry||'Industry not set'} &nbsp;·&nbsp; ${u.email}</p>
       </div>
     </div>
@@ -121,7 +116,7 @@ function renderOrg(u, el) {
       </div>
       <div class="card">
         <h3>Allocated Students</h3>
-        ${myP.length?myP.map(p=>{const s=students.find(x=>x.id===p.studentId);return`<div style="padding:.75rem;background:var(--cream);border-radius:8px;margin-bottom:8px;border:1px solid var(--border)"><div class="d-flex align-center justify-between"><div><p style="font-weight:600;font-size:.88rem">${s?.fullName||'Student'}</p><p class="text-xs text-muted">${s?.studentId||''}</p></div><span class="badge ${p.status==='confirmed'?'badge-green':'badge-amber'}">${p.status}</span></div><div class="score-wrap mt-2"><div class="score-bar"><div class="score-fill" style="width:${p.score}%"></div></div><span class="score-num">${p.score}%</span></div></div>`;}).join(''):'<div class="empty" style="padding:1.5rem 0"><div class="empty-icon">⏳</div><p>No students allocated yet.</p></div>'}
+        ${myP.length?myP.map(p=>{const s=students.find(x=>x.id===p.student_id);return`<div style="padding:.75rem;background:var(--cream);border-radius:8px;margin-bottom:8px;border:1px solid var(--border)"><div class="d-flex align-center justify-between"><div><p style="font-weight:600;font-size:.88rem">${s?.fullName||'Student'}</p><p class="text-xs text-muted">${s?.studentId||''}</p></div><span class="badge ${p.status==='confirmed'?'badge-green':'badge-amber'}">${p.status}</span></div><div class="score-wrap mt-2"><div class="score-bar"><div class="score-fill" style="width:${p.score}%"></div></div><span class="score-num">${p.score}%</span></div></div>`;}).join(''):'<div class="empty" style="padding:1.5rem 0"><div class="empty-icon">⏳</div><p>No students allocated yet.</p></div>'}
       </div>
     </div>`;
 }

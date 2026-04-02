@@ -7,24 +7,23 @@
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script src="../js/sidebar.js"></script>
 <script>
 let allStudents=[], allPlacements=[], allOrgs=[];
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const u = initAppShell('Students');
   if (!u) return;
   Auth.require('coordinator');
-  allStudents   = DB.get('students')     ||[];
-  allPlacements = DB.get('placements')   ||[];
-  allOrgs       = DB.get('organizations')||[];
+  [allStudents, allPlacements, allOrgs] = await Promise.all([getStudents(), getPlacements(), getOrganizations()]);
   render(allStudents);
 });
 
 function filter() {
   const q = document.getElementById('srch').value.toLowerCase();
-  render(q ? allStudents.filter(s=>[s.fullName,s.studentId,s.department,s.skills,s.preferences].join(' ').toLowerCase().includes(q)) : allStudents);
+  render(q ? allStudents.filter(s=>[s.full_name,s.student_id,s.department,s.skills,s.preferences].join(' ').toLowerCase().includes(q)) : allStudents);
 }
 
 function render(students) {
@@ -32,12 +31,12 @@ function render(students) {
   const rows = students.map(s=>{
     const p = allPlacements.find(x=>x.studentId===s.id);
     const o = p ? allOrgs.find(x=>x.id===p.orgId) : null;
-    const init = (s.fullName||'S')[0].toUpperCase();
+    const init = (s.full_name||'S')[0].toUpperCase();
     const tags = split(s.skills).slice(0,4).map(sk=>`<span class="tag">${sk}</span>`).join('');
     const extra = split(s.skills).length>4 ? `<span class="tag">+${split(s.skills).length-4}</span>` : '';
     return `<tr>
-      <td><div class="d-flex align-center gap-2"><div class="av">${init}</div><strong>${s.fullName||'—'}</strong></div></td>
-      <td><code style="font-size:.75rem;color:var(--muted);background:var(--cream2);padding:2px 7px;border-radius:4px">${s.studentId}</code></td>
+      <td><div class="d-flex align-center gap-2"><div class="av">${init}</div><strong>${s.full_name||'—'}</strong></div></td>
+      <td><code style="font-size:.75rem;color:var(--muted);background:var(--cream2);padding:2px 7px;border-radius:4px">${s.student_id}</code></td>
       <td>${s.department||'—'}</td>
       <td><strong style="color:var(--green)">${s.gpa||'—'}</strong></td>
       <td><div class="tags">${tags}${extra}${!s.skills?'<span class="text-muted text-xs">None</span>':''}</div></td>

@@ -71,32 +71,28 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script>
 function fill(e, p) { document.getElementById('email').value=e; document.getElementById('password').value=p; }
 
-function doLogin() {
+async function doLogin() {
   const email = document.getElementById('email').value.trim().toLowerCase();
   const pw    = document.getElementById('password').value;
   if (!email||!pw) { showAlert('alertBox','Please fill in both fields.','error'); return; }
-  const users = DB.get('users')||[];
-  const user  = users.find(u=>u.email.toLowerCase()===email && u.password===pw);
-  if (!user) { showAlert('alertBox','Incorrect email or password.','error'); return; }
-
-  let profile = {...user};
-  if (user.role==='student') {
-    const s = (DB.get('students')||[]).find(x=>x.userId===user.id||x.id===user.studentId);
-    if (s) Object.assign(profile, s, {id:user.id});
-  } else if (user.role==='organization') {
-    const o = (DB.get('organizations')||[]).find(x=>x.userId===user.id||x.id===user.orgId);
-    if (o) Object.assign(profile, o, {id:user.id});
+  const btn = document.querySelector('button[onclick="doLogin()"]');
+  if (btn) { btn.textContent='Signing in…'; btn.disabled=true; }
+  try {
+    await loginUser(email, pw);
+    window.location.href = 'dashboard.html';
+  } catch(err) {
+    showAlert('alertBox', err.message, 'error');
+    if (btn) { btn.textContent='Sign In →'; btn.disabled=false; }
   }
-  Auth.login(profile);
-  go('dashboard.html');
 }
 
 document.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
-document.addEventListener('DOMContentLoaded', ()=>{ if(Auth.current()) go('dashboard.html'); });
+document.addEventListener('DOMContentLoaded', ()=>{ if(Auth.current()) window.location.href='dashboard.html'; });
 </script>
 </body>
 </html>

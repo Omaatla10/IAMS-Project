@@ -7,19 +7,18 @@
   <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script src="../js/sidebar.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const u = initAppShell('My Placement');
   if (!u) return;
 
-  const students   = DB.get('students')      ||[];
-  const placements = DB.get('placements')    ||[];
-  const orgs       = DB.get('organizations') ||[];
-  const student    = students.find(s=>s.userId===u.id||s.id===u.studentId||s.id===u.id);
-  const placement  = student ? placements.find(p=>p.studentId===student.id) : null;
-  const org        = placement ? orgs.find(o=>o.id===placement.orgId) : null;
+  const student = await getStudentByUserId(u.id);
+  const [placements, orgs] = await Promise.all([getPlacements(), getOrganizations()]);
+  const placement = student ? placements.find(p=>p.student_id===student.id) : null;
+  const org        = placement ? orgs.find(o=>o.id===placement.org_id) : null;
   const el         = document.getElementById('pageContent');
 
   el.innerHTML = `
@@ -45,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const date = new Date(placement.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
-  const skills = split(org.requiredSkills);
+  const skills = split(org.required_skills);
 
   el.innerHTML += `
     <div class="placement-card">
@@ -53,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="placement-body">
         <div class="placement-top">
           <div class="placement-org">
-            <h2>${org.orgName}</h2>
+            <h2>${org.org_name}</h2>
             <p>${org.industry||'Industry not specified'}</p>
           </div>
           <span class="badge ${placement.status==='confirmed'?'badge-green':'badge-amber'}">
@@ -71,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
 
         <div class="placement-meta">
-          <div class="pmeta-item"><div class="k">Contact Person</div><div class="v">${org.contactPerson||'—'}</div></div>
+          <div class="pmeta-item"><div class="k">Contact Person</div><div class="v">${org.contact_person||'—'}</div></div>
           <div class="pmeta-item"><div class="k">Phone</div><div class="v">${org.phone||'—'}</div></div>
           <div class="pmeta-item"><div class="k">Industry</div><div class="v">${org.industry||'—'}</div></div>
           <div class="pmeta-item"><div class="k">Positions Available</div><div class="v">${org.positions||'1'}</div></div>
