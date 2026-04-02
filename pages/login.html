@@ -37,7 +37,7 @@
     </div>
   </div>
 
-  <div class="auth-right">
+<div class="auth-right">
     <div class="auth-form-box">
         <h2>Sign in</h2>
         <p class="auth-sub">Select your user type and enter credentials below.</p>
@@ -59,32 +59,12 @@
 
         <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()" style="margin-top:.25rem">Sign In →</button>
 
-        <div class="demo-box">
-            <div class="demo-box-title">📋 Demo Credentials</div>
-            <div id="demoCredentials"></div>
-            <div class="demo-btns" id="demoButtons"></div>
-        </div>
 
         <div class="auth-footer">Don't have an account? <a href="register.html">Create one free</a></div>
     </div>
-  </div>
+</div>
 
-  <script>
-    // User data storage
-    const users = {
-        student: [
-            { id: "S12345", password: "student123", name: "John Lasswell" },
-            { id: "S12346", password: "student456", name: "Jane Doe" }
-        ],
-        organization: [
-            { id: "ORG001", password: "org123", name: "BIH Corp" },
-            { id: "ORG002", password: "org456", name: "Tech Solutions Ltd" }
-        ],
-        coordinator: [
-            { id: "STF001", password: "coord123", name: "Dr. Smith" },
-            { id: "STF002", password: "coord456", name: "Prof. Johnson" }
-        ]
-    };
+<script>
 
     function switchUserType() {
         const userType = document.getElementById('userType').value;
@@ -103,45 +83,19 @@
         let fieldHtml = '';
         let labelText = '';
         let placeholder = '';
-        let demoCredsHtml = '';
-        let demoBtnsHtml = '';
 
         switch(userType) {
             case 'student':
                 labelText = 'Student ID';
-                placeholder = 'e.g., S12345';
-                demoCredsHtml = `
-                    <div class="demo-cred"><strong>Student:</strong> S12345 / student123 (John Lasswell)</div>
-                    <div class="demo-cred"><strong>Student:</strong> S12346 / student456 (Jane Doe)</div>
-                `;
-                demoBtnsHtml = `
-                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('student', 'S12345', 'student123')">🎓 John Lasswell</button>
-                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('student', 'S12346', 'student456')">🎓 Jane Doe</button>
-                `;
+                placeholder = 'Your Student ID';
                 break;
             case 'organization':
                 labelText = 'Organization ID';
-                placeholder = 'e.g., ORG001';
-                demoCredsHtml = `
-                    <div class="demo-cred"><strong>Organization:</strong> ORG001 / org123 (BIH Corp)</div>
-                    <div class="demo-cred"><strong>Organization:</strong> ORG002 / org456 (Tech Solutions Ltd)</div>
-                `;
-                demoBtnsHtml = `
-                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('organization', 'ORG001', 'org123')">🏢 BIH Corp</button>
-                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('organization', 'ORG002', 'org456')">🏢 Tech Solutions</button>
-                `;
+                placeholder = 'Your Organization ID';
                 break;
             case 'coordinator':
                 labelText = 'Staff ID';
-                placeholder = 'e.g., STF001';
-                demoCredsHtml = `
-                    <div class="demo-cred"><strong>Coordinator:</strong> STF001 / coord123 (Dr. Smith)</div>
-                    <div class="demo-cred"><strong>Coordinator:</strong> STF002 / coord456 (Prof. Johnson)</div>
-                `;
-                demoBtnsHtml = `
-                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('coordinator', 'STF001', 'coord123')">👨‍🏫 Dr. Smith</button>
-                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('coordinator', 'STF002', 'coord456')">👨‍🏫 Prof. Johnson</button>
-                `;
+                placeholder = 'Your Staff ID';
                 break;
         }
 
@@ -157,7 +111,6 @@
         `;
 
         dynamicFields.innerHTML = fieldHtml;
-        demoCredentialsDiv.innerHTML = demoCredsHtml;
         demoButtonsDiv.innerHTML = demoBtnsHtml;
         
         // Clear any existing alerts
@@ -236,7 +189,7 @@
     document.addEventListener('DOMContentLoaded', () => {
         switchUserType();
     });
-  </script>
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script>
