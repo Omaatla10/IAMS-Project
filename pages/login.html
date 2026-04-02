@@ -39,38 +39,204 @@
 
   <div class="auth-right">
     <div class="auth-form-box">
-      <h2>Sign in</h2>
-      <p class="auth-sub">Enter your registered credentials below.</p>
-      <div id="alertBox"></div>
+        <h2>Sign in</h2>
+        <p class="auth-sub">Select your user type and enter credentials below.</p>
+        <div id="alertBox"></div>
 
-      <div class="form-group">
-        <label class="form-label">Email Address</label>
-        <input type="email" id="email" class="form-control" placeholder="you@example.com" autocomplete="email">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" id="password" class="form-control" placeholder="Your password">
-      </div>
-
-      <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()" style="margin-top:.25rem">Sign In →</button>
-
-      <div class="demo-box">
-        <div class="demo-box-title">Demo Credentials</div>
-        <div class="demo-cred"><strong>Coordinator:</strong> coordinator@ub.ac.bw / coord123</div>
-        <div class="demo-cred"><strong>Student:</strong> lasswell@ub.ac.bw / student123</div>
-        <div class="demo-cred"><strong>Organization:</strong> bih@example.com / org123</div>
-        <div class="demo-btns">
-          <button class="btn btn-ghost btn-sm" onclick="fill('coordinator@ub.ac.bw','coord123')">⚙️ Coordinator</button>
-          <button class="btn btn-ghost btn-sm" onclick="fill('lasswell@ub.ac.bw','student123')">🎓 Student</button>
-          <button class="btn btn-ghost btn-sm" onclick="fill('bih@example.com','org123')">🏢 Organization</button>
+        <!-- User Type Dropdown -->
+        <div class="form-group">
+            <label class="form-label">User Type</label>
+            <select id="userType" class="user-select" onchange="switchUserType()">
+                <option value="">-- Select User Type --</option>
+                <option value="student">🎓 Student</option>
+                <option value="organization">🏢 Organization</option>
+                <option value="coordinator">👨‍🏫 Coordinator</option>
+            </select>
         </div>
-      </div>
 
-      <div class="auth-footer">Don't have an account? <a href="register.html">Create one free</a></div>
+        <!-- Dynamic Fields Container -->
+        <div id="dynamicFields"></div>
+
+        <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()" style="margin-top:.25rem">Sign In →</button>
+
+        <div class="demo-box">
+            <div class="demo-box-title">📋 Demo Credentials</div>
+            <div id="demoCredentials"></div>
+            <div class="demo-btns" id="demoButtons"></div>
+        </div>
+
+        <div class="auth-footer">Don't have an account? <a href="register.html">Create one free</a></div>
     </div>
   </div>
-</div>
 
+  <script>
+    // User data storage
+    const users = {
+        student: [
+            { id: "S12345", password: "student123", name: "John Lasswell" },
+            { id: "S12346", password: "student456", name: "Jane Doe" }
+        ],
+        organization: [
+            { id: "ORG001", password: "org123", name: "BIH Corp" },
+            { id: "ORG002", password: "org456", name: "Tech Solutions Ltd" }
+        ],
+        coordinator: [
+            { id: "STF001", password: "coord123", name: "Dr. Smith" },
+            { id: "STF002", password: "coord456", name: "Prof. Johnson" }
+        ]
+    };
+
+    function switchUserType() {
+        const userType = document.getElementById('userType').value;
+        const dynamicFields = document.getElementById('dynamicFields');
+        const demoCredentialsDiv = document.getElementById('demoCredentials');
+        const demoButtonsDiv = document.getElementById('demoButtons');
+        
+        if (!userType) {
+            dynamicFields.innerHTML = '';
+            demoCredentialsDiv.innerHTML = '';
+            demoButtonsDiv.innerHTML = '';
+            return;
+        }
+
+        // Generate dynamic fields based on user type
+        let fieldHtml = '';
+        let labelText = '';
+        let placeholder = '';
+        let demoCredsHtml = '';
+        let demoBtnsHtml = '';
+
+        switch(userType) {
+            case 'student':
+                labelText = 'Student ID';
+                placeholder = 'e.g., S12345';
+                demoCredsHtml = `
+                    <div class="demo-cred"><strong>Student:</strong> S12345 / student123 (John Lasswell)</div>
+                    <div class="demo-cred"><strong>Student:</strong> S12346 / student456 (Jane Doe)</div>
+                `;
+                demoBtnsHtml = `
+                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('student', 'S12345', 'student123')">🎓 John Lasswell</button>
+                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('student', 'S12346', 'student456')">🎓 Jane Doe</button>
+                `;
+                break;
+            case 'organization':
+                labelText = 'Organization ID';
+                placeholder = 'e.g., ORG001';
+                demoCredsHtml = `
+                    <div class="demo-cred"><strong>Organization:</strong> ORG001 / org123 (BIH Corp)</div>
+                    <div class="demo-cred"><strong>Organization:</strong> ORG002 / org456 (Tech Solutions Ltd)</div>
+                `;
+                demoBtnsHtml = `
+                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('organization', 'ORG001', 'org123')">🏢 BIH Corp</button>
+                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('organization', 'ORG002', 'org456')">🏢 Tech Solutions</button>
+                `;
+                break;
+            case 'coordinator':
+                labelText = 'Staff ID';
+                placeholder = 'e.g., STF001';
+                demoCredsHtml = `
+                    <div class="demo-cred"><strong>Coordinator:</strong> STF001 / coord123 (Dr. Smith)</div>
+                    <div class="demo-cred"><strong>Coordinator:</strong> STF002 / coord456 (Prof. Johnson)</div>
+                `;
+                demoBtnsHtml = `
+                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('coordinator', 'STF001', 'coord123')">👨‍🏫 Dr. Smith</button>
+                    <button class="btn btn-ghost btn-sm" onclick="fillCredentials('coordinator', 'STF002', 'coord456')">👨‍🏫 Prof. Johnson</button>
+                `;
+                break;
+        }
+
+        fieldHtml = `
+            <div class="form-group fade-in">
+                <label class="form-label">${labelText}</label>
+                <input type="text" id="userId" class="form-control" placeholder="${placeholder}" autocomplete="off">
+            </div>
+            <div class="form-group fade-in">
+                <label class="form-label">Password</label>
+                <input type="password" id="password" class="form-control" placeholder="Your password">
+            </div>
+        `;
+
+        dynamicFields.innerHTML = fieldHtml;
+        demoCredentialsDiv.innerHTML = demoCredsHtml;
+        demoButtonsDiv.innerHTML = demoBtnsHtml;
+        
+        // Clear any existing alerts
+        clearAlert();
+    }
+
+    function fillCredentials(userType, id, password) {
+        // Set the dropdown
+        document.getElementById('userType').value = userType;
+        
+        // Trigger the field generation
+        switchUserType();
+        
+        // Small delay to ensure fields are rendered
+        setTimeout(() => {
+            document.getElementById('userId').value = id;
+            document.getElementById('password').value = password;
+        }, 50);
+    }
+
+    function doLogin() {
+        const userType = document.getElementById('userType').value;
+        
+        if (!userType) {
+            showAlert('Please select a user type', 'error');
+            return;
+        }
+        
+        const userId = document.getElementById('userId')?.value;
+        const password = document.getElementById('password')?.value;
+        
+        if (!userId || !password) {
+            showAlert('Please enter both ID and password', 'error');
+            return;
+        }
+        
+        // Validate credentials
+        const userList = users[userType];
+        const validUser = userList.find(user => user.id === userId && user.password === password);
+        
+        if (validUser) {
+            showAlert(`Welcome back, ${validUser.name}! Redirecting...`, 'success');
+            
+            // Store user info in session
+            sessionStorage.setItem('loggedInUser', JSON.stringify({
+                type: userType,
+                id: userId,
+                name: validUser.name
+            }));
+            
+            // Redirect after 1.5 seconds
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 1500);
+        } else {
+            showAlert('Invalid credentials. Please check your ID and password.', 'error');
+        }
+    }
+    
+    function showAlert(message, type) {
+        const alertBox = document.getElementById('alertBox');
+        alertBox.innerHTML = `<div class="alert alert-${type} fade-in">${message}</div>`;
+        
+        // Auto clear after 3 seconds
+        setTimeout(() => {
+            clearAlert();
+        }, 3000);
+    }
+    
+    function clearAlert() {
+        const alertBox = document.getElementById('alertBox');
+        alertBox.innerHTML = '';
+    }
+    
+    // Initialize with no user type selected
+    document.addEventListener('DOMContentLoaded', () => {
+        switchUserType();
+    });
+  </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script>
