@@ -149,8 +149,8 @@
         
         // Validate credentials
         const userList = users[userType];
-        const validUser = userList.find(user => user.id === userId && user.password === password);
-        
+        const validUser = userList.find(user => user.student_id === userId && user.password === password);
+
         if (validUser) {
             showAlert(`Welcome back, ${validUser.name}! Redirecting...`, 'success');
             
@@ -193,16 +193,16 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script>
-function fill(e, p) { document.getElementById('email').value=e; document.getElementById('password').value=p; }
+function fill(i, p) { document.getElementById('userId').value=i; document.getElementById('password').value=p; }
 
 async function doLogin() {
-  const email = document.getElementById('email').value.trim().toLowerCase();
-  const pw    = document.getElementById('password').value;
-  if (!email||!pw) { showAlert('alertBox','Please fill in both fields.','error'); return; }
+  const userId = document.getElementById('userId')?.value;
+  const pw    = document.getElementById('password')?.value;
+  if (!userId||!pw) { showAlert('alertBox','Please fill in both fields.','error'); return; }
   const btn = document.querySelector('button[onclick="doLogin()"]');
   if (btn) { btn.textContent='Signing in…'; btn.disabled=true; }
   try {
-    await loginUser(email, pw);
+    await loginUser(userId, pw);
     window.location.href = 'dashboard.html';
   } catch(err) {
     showAlert('alertBox', err.message, 'error');

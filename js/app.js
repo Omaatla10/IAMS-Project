@@ -33,14 +33,14 @@ const Auth = {
 // ════════════════════════════════════════════
 //  LOGIN
 // ════════════════════════════════════════════
-async function loginUser(email, password) {
-  const { data, error } = await _sb.auth.signInWithPassword({ email, password });
-  if (error) throw new Error('Incorrect email or password.');
+async function loginUser(userId, password) {
+  const { data, error } = await _sb.auth.signInWithPassword({ email: userId, password });
+  if (error) throw new Error('Incorrect user Id or password.');
   const uid = data.user.id;
   const profiles = await _q(() => _sb.from('profiles').select('*').eq('id', uid));
   const prof = profiles[0];
   if (!prof) throw new Error('Account not found. Please register.');
-  let user = { id: uid, email, role: prof.role };
+  let user = { id: uid, email: userId, role: prof.role };
   if (prof.role === 'student') {
     const r = await _q(() => _sb.from('students').select('*').eq('user_id', uid));
     if (r[0]) Object.assign(user, r[0], { id: uid });
@@ -64,14 +64,35 @@ async function registerUser(email, password, role) {
   const uid = data.user.id;
   await _q(() => _sb.from('profiles').insert({ id: uid, email, role }));
   let user = { id: uid, email, role };
+
   if (role === 'student') {
-    const r = await _q(() => _sb.from('students').insert({ user_id: uid, email, full_name: '', student_id: 'STU' + uid.slice(-6), department: '', gpa: '', skills: '', preferences: '', phone: '' }).select());
+    const r = await _q(() => _sb.from('students').insert({ user_id: uid, email, full_name: '', student_id: '', department: '', gpa: '', skills: '', preferences: '', phone: '', password }).select());
     if (r[0]) Object.assign(user, r[0], { id: uid });
-  } else if (role === 'organization') {
+  } 
+  
+  else if (role === 'organization') {
+        // Fetch the highest org_id
+    const organizations = await _q(() => _sb.from('organizations').select('org_id').order('org_id', { ascending: false }).limit(1));
+    let nextNum = 1;
+    if (organizations.length > 0 && organizations[0].org_id) {
+      const match = organizations[0].org_id.match(/^ORG(\d+)$/);
+      if (match) nextNum = parseInt(match[1], 10) + 1;
+    }
+    const newOrgId = 'ORG' + String(nextNum).padStart(3, '0');
     const r = await _q(() => _sb.from('organizations').insert({ user_id: uid, email, org_name: '', industry: '', positions: 1, required_skills: '', contact_person: '', phone: '', description: '' }).select());
     if (r[0]) Object.assign(user, r[0], { id: uid });
-  } else if (role === 'coordinator') {
-    const r = await _q(() => _sb.from('coordinators').insert({ user_id: uid, email, full_name: '', staff_id: 'STAFF' + uid.slice(-4), department: '', phone: '' }).select());
+  }
+  
+  else if (role === 'coordinator') {
+    // Fetch the highest staff_id
+    const coords = await _q(() => _sb.from('coordinators').select('staff_id').order('staff_id', { ascending: false }).limit(1));
+    let nextNum = 1;
+    if (coords.length > 0 && coords[0].staff_id) {
+      const match = coords[0].staff_id.match(/^STAFF(\d+)$/);
+      if (match) nextNum = parseInt(match[1], 10) + 1;
+    }
+    const newStaffId = 'STAFF' + String(nextNum).padStart(3, '0');
+    const r = await _q(() => _sb.from('coordinators').insert({ user_id: uid, email, full_name: '', staff_id: newStaffId, department: '', phone: '' }).select());
     if (r[0]) Object.assign(user, r[0], { id: uid });
   }
   Auth.login(user);
