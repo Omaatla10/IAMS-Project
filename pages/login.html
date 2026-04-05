@@ -86,23 +86,23 @@
 
         switch(userType) {
             case 'student':
-                labelText = 'Student ID';
-                placeholder = 'Your Student ID';
+                labelText = 'Student Email';
+                placeholder = 'Your Student Email';
                 break;
             case 'organization':
-                labelText = 'Organization ID';
-                placeholder = 'Your Organization ID';
+                labelText = 'Organization Email';
+                placeholder = 'Your Organization Email';
                 break;
             case 'coordinator':
-                labelText = 'Staff ID';
-                placeholder = 'Your Staff ID';
+                labelText = 'Staff Email';
+                placeholder = 'Your Staff Email';
                 break;
         }
 
         fieldHtml = `
             <div class="form-group fade-in">
                 <label class="form-label">${labelText}</label>
-                <input type="text" id="userId" class="form-control" placeholder="${placeholder}" autocomplete="off">
+                <input type="email" id="email" class="form-control" placeholder="${placeholder}" autocomplete="off">
             </div>
             <div class="form-group fade-in">
                 <label class="form-label">Password</label>
@@ -131,44 +131,38 @@
         }, 50);
     }
 
-    function doLogin() {
-        const userType = document.getElementById('userType').value;
-        
-        if (!userType) {
-            showAlert('Please select a user type', 'error');
-            return;
-        }
-        
-        const userId = document.getElementById('userId')?.value;
-        const password = document.getElementById('password')?.value;
-        
-        if (!userId || !password) {
-            showAlert('Please enter both ID and password', 'error');
-            return;
-        }
-        
-        // Validate credentials
-        const userList = users[userType];
-        const validUser = userList.find(user => user.student_id === userId && user.password === password);
+function doLogin() {
+    const userType = document.getElementById('userType').value;
 
-        if (validUser) {
-            showAlert(`Welcome back, ${validUser.name}! Redirecting...`, 'success');
-            
-            // Store user info in session
-            sessionStorage.setItem('loggedInUser', JSON.stringify({
-                type: userType,
-                id: userId,
-                name: validUser.name
-            }));
-            
-            // Redirect after 1.5 seconds
+    if (!userType) {
+        showAlert('Please select a user type', 'error');
+        return;
+    }
+
+    // Get the email field instead of userId
+    const email = document.getElementById('email')?.value?.trim().toLowerCase();
+    const password = document.getElementById('password')?.value;
+
+    if (!email || !password) {
+        showAlert('Please enter both email and password', 'error');
+        return;
+    }
+
+    // Call your loginUser function from app.js
+    const btn = document.querySelector('button[onclick="doLogin()"]');
+    if (btn) { btn.textContent='Signing in…'; btn.disabled=true; }
+    loginUser(email, password)
+        .then(() => {
+            showAlert(`Welcome back! Redirecting...`, 'success');
             setTimeout(() => {
                 window.location.href = 'dashboard.html';
             }, 1500);
-        } else {
-            showAlert('Invalid credentials. Please check your ID and password.', 'error');
-        }
-    }
+        })
+        .catch(err => {
+            showAlert(err.message, 'error');
+            if (btn) { btn.textContent='Sign In →'; btn.disabled=false; }
+        });
+}
     
     function showAlert(message, type) {
         const alertBox = document.getElementById('alertBox');
@@ -193,16 +187,16 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script>
-function fill(i, p) { document.getElementById('userId').value=i; document.getElementById('password').value=p; }
+function fill(e, p) { document.getElementById('email').value=e; document.getElementById('password').value=p; }
 
 async function doLogin() {
-  const userId = document.getElementById('userId')?.value;
-  const pw    = document.getElementById('password')?.value;
-  if (!userId||!pw) { showAlert('alertBox','Please fill in both fields.','error'); return; }
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const pw    = document.getElementById('password').value;
+  if (!email||!pw) { showAlert('alertBox','Please fill in both fields.','error'); return; }
   const btn = document.querySelector('button[onclick="doLogin()"]');
   if (btn) { btn.textContent='Signing in…'; btn.disabled=true; }
   try {
-    await loginUser(userId, pw);
+    await loginUser(email, pw);
     window.location.href = 'dashboard.html';
   } catch(err) {
     showAlert('alertBox', err.message, 'error');

@@ -33,14 +33,14 @@ const Auth = {
 // ════════════════════════════════════════════
 //  LOGIN
 // ════════════════════════════════════════════
-async function loginUser(userId, password) {
-  const { data, error } = await _sb.auth.signInWithPassword({ email: userId, password });
-  if (error) throw new Error('Incorrect user Id or password.');
+async function loginUser(email, password) {
+  const { data, error } = await _sb.auth.signInWithPassword({ email, password });
+  if (error) throw new Error('Incorrect email or password.');
   const uid = data.user.id;
   const profiles = await _q(() => _sb.from('profiles').select('*').eq('id', uid));
   const prof = profiles[0];
   if (!prof) throw new Error('Account not found. Please register.');
-  let user = { id: uid, email: userId, role: prof.role };
+  let user = { id: uid, email, role: prof.role };
   if (prof.role === 'student') {
     const r = await _q(() => _sb.from('students').select('*').eq('user_id', uid));
     if (r[0]) Object.assign(user, r[0], { id: uid });
