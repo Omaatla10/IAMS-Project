@@ -22,7 +22,7 @@ async function renderMatch() {
   const students   = await _q(() => _sb.from('students').select('*')) || [];
   const orgs       = await _q(() => _sb.from('organizations').select('*')) || [];
   const placements = await _q(() => _sb.from('placements').select('*')) || [];
-  const unmatched  = students.filter(s=>!placements.find(p=>p.studentId===s.id)).length;
+  const unmatched  = students.filter(s=>!placements.find(p=>p.student_id===s.id)).length;
 
   document.getElementById('pageContent').innerHTML = `
     <div class="page-header">
