@@ -79,7 +79,7 @@ async function registerUser(email, password, role) {
       if (match) nextNum = parseInt(match[1], 10) + 1;
     }
     const newOrgId = 'ORG' + String(nextNum).padStart(3, '0');
-    const r = await _q(() => _sb.from('organizations').insert({ user_id: uid, email, org_name: '', industry: '', positions: 1, required_skills: '', contact_person: '', phone: '', description: '' }).select());
+    const r = await _q(() => _sb.from('organizations').insert({ user_id: uid, email, org_name: '', industry: '', positions: 1, required_skills: '', contact_person: '', phone: '', description: '', org_id: newOrgId }).select());
     if (r[0]) Object.assign(user, r[0], { id: uid });
   }
   
@@ -132,13 +132,18 @@ async function saveCoordProfile(uid, data) {
 //  MATCHING ALGORITHM
 // ════════════════════════════════════════════
 async function runMatching() {
+  //Fetch data 
   const students = await getStudents();
   const orgs     = await getOrganizations();
   const existing = await getPlacements();
+
+  //find unmatched students and calculate org capacities
   const placedIds = new Set(existing.map(p => p.student_id));
   const unmatched = students.filter(s => !placedIds.has(s.id));
   const cap = {};
   orgs.forEach(o => { const taken = existing.filter(p => p.org_id === o.id).length; cap[o.id] = Math.max(0, (parseInt(o.positions) || 1) - taken); });
+  
+  //Match each unmatched student to best org based on skills, preferences, and GPA. Insert new placements with 'pending' status.
   const inserts = [];
   unmatched.forEach(student => {
     const sSkills = new Set(split(student.skills).map(x => x.toLowerCase()));
@@ -156,6 +161,8 @@ async function runMatching() {
     });
     if (best) { inserts.push({ student_id: student.id, org_id: best.id, score: bestScore, status: 'pending' }); cap[best.id]--; }
   });
+
+  // Insert new placements
   if (inserts.length > 0) await _q(() => _sb.from('placements').insert(inserts));
   return inserts.length;
 }

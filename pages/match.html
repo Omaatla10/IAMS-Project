@@ -18,10 +18,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderMatch();
 });
 
-function renderMatch() {
-  const students   = DB.get('students')     ||[];
-  const orgs       = DB.get('organizations')||[];
-  const placements = DB.get('placements')   ||[];
+async function renderMatch() {
+  const students   = await _q(() => _sb.from('students').select('*')) || [];
+  const orgs       = await _q(() => _sb.from('organizations').select('*')) || [];
+  const placements = await _q(() => _sb.from('placements').select('*')) || [];
   const unmatched  = students.filter(s=>!placements.find(p=>p.studentId===s.id)).length;
 
   document.getElementById('pageContent').innerHTML = `
@@ -88,9 +88,14 @@ async function doRun() {
 
 function doClear() {
   if (!confirm('Clear ALL placements? This cannot be undone.')) return;
-  DB.set('placements',[]);
-  showAlert('alertBox','All placements cleared.','info');
-  setTimeout(renderMatch, 100);
+  _q(() => _sb.from('placements').delete().neq('id', '00000000-0000-0000-0000-000000000000'))
+    .then(() => {
+      showAlert('alertBox','All placements cleared.','info');
+      setTimeout(renderMatch, 100);
+    })
+    .catch(() => {
+      showAlert('alertBox','Failed to clear placements.','error');
+    });
 }
 </script>
 </body>

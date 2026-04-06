@@ -29,8 +29,8 @@ function filter() {
 function render(students) {
   const el = document.getElementById('pageContent');
   const rows = students.map(s=>{
-    const p = allPlacements.find(x=>x.studentId===s.id);
-    const o = p ? allOrgs.find(x=>x.id===p.orgId) : null;
+    const p = allPlacements.find(x=>x.student_id===s.id);
+    const o = p ? allOrgs.find(x=>x.id===p.org_id) : null;
     const init = (s.full_name||'S')[0].toUpperCase();
     const tags = split(s.skills).slice(0,4).map(sk=>`<span class="tag">${sk}</span>`).join('');
     const extra = split(s.skills).length>4 ? `<span class="tag">+${split(s.skills).length-4}</span>` : '';
@@ -40,7 +40,7 @@ function render(students) {
       <td>${s.department||'—'}</td>
       <td><strong style="color:var(--green)">${s.gpa||'—'}</strong></td>
       <td><div class="tags">${tags}${extra}${!s.skills?'<span class="text-muted text-xs">None</span>':''}</div></td>
-      <td>${p&&o?`<span class="badge badge-green">✓ ${o.orgName}</span>`:'<span class="badge badge-amber">⏳ Unmatched</span>'}</td>
+      <td>${p&&o?`<span class="badge badge-green">✓ ${o.org_name}</span>`:'<span class="badge badge-amber">⏳ Unmatched</span>'}</td>
     </tr>`;
   }).join('');
 
