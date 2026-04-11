@@ -66,7 +66,7 @@ async function registerUser(email, password, role) {
   await _q(() => _sb.from('profiles').insert({ id: uid, email, role }));
   let user = { id: uid, email, role };
   if (role === 'student') {
-    const r = await _q(() => _sb.from('students').insert({ user_id: uid, email, full_name: '', student_id: 'STU' + uid.slice(-6), department: '', gpa: '', skills: '', preferences: '', phone: '' }).select());
+    const r = await _q(() => _sb.from('students').insert({ user_id: uid, email, full_name: '', student_id: '', department: '', gpa: '', skills: '', preferences: '', phone: '' }).select());
     if (r[0]) Object.assign(user, r[0], { id: uid });
   } else if (role === 'organization') {
     const r = await _q(() => _sb.from('organizations').insert({ user_id: uid, email, org_name: '', industry: '', positions: 1, required_skills: '', contact_person: '', phone: '', description: '' }).select());
@@ -130,7 +130,7 @@ async function runMatching() {
       let ss = 10;
       if (sSkills.size && oSkills.length) { const ov = oSkills.filter(sk => sSkills.has(sk.toLowerCase())).length; ss = (ov / oSkills.length) * 70; }
       const pref = sPrefs.includes((org.industry || '').toLowerCase()) ? 20 : 0;
-      const gpa  = Math.min((parseFloat(student.gpa) || 0) * 2.5, 10);
+      const gpa  = Math.min((parseFloat(student.gpa) || 0) * 2, 10);
       const score = Math.min(Math.round(ss + pref + gpa), 100);
       if (score > bestScore) { bestScore = score; best = org; }
     });
