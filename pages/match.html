@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Run Matching — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const u = initAppShell('Match');
+  if (!u) return;
+  Auth.require('coordinator');
+  renderMatch();
+});
+
+function renderMatch() {
+  const students   = DB.get('students')     ||[];
+  const orgs       = DB.get('organizations')||[];
+  const placements = DB.get('placements')   ||[];
+  const unmatched  = students.filter(s=>!placements.find(p=>p.studentId===s.id)).length;
+
+  document.getElementById('pageContent').innerHTML = `
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>Student–Organization Matching</h1>
+        <p>Run the algorithm to automatically assign students to organizations.</p>
+      </div>
+    </div>
+    <div id="alertBox"></div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${students.length}</div><div class="stat-lbl">Total Students</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${orgs.length}</div><div class="stat-lbl">Organizations</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--amber)">${placements.length}</div><div class="stat-lbl">Placed</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--red)">${unmatched}</div><div class="stat-lbl">Unmatched</div></div>
+    </div>
+    <div class="match-main">
+      <div class="match-icon">🎯</div>
+      <div>
+        <h3>Matching Engine</h3>
+        <p>Scores every unmatched student against every available organization and assigns each to their highest-scoring match. Organization capacity is respected — once full, that org is skipped.</p>
+        <div class="d-flex gap-2 flex-wrap">
+          <button class="btn btn-primary" onclick="doRun()" ${unmatched===0?'disabled style="opacity:.5;cursor:not-allowed"':''}>▶ Run Matching</button>
+          <button class="btn btn-danger" onclick="doClear()">✕ Clear All Placements</button>
+          <a href="placements.html" class="btn btn-outline">📋 View Results →</a>
+        </div>
+        <p class="text-sm mt-2" style="color:${unmatched===0?'var(--green)':'var(--muted)'}">
+          ${unmatched===0?'✓ All students have been matched. Clear to re-run.':unmatched+' student(s) ready to be matched.'}
+        </p>
+      </div>
+    </div>
+    <div class="algo-card">
+      <div class="algo-title">How the score is calculated</div>
+      <div class="algo-row">
+        <span class="algo-lbl">🔧 Skill Overlap</span>
+        <div class="algo-bar-bg"><div class="algo-bar-fill" style="width:70%;background:var(--blue)"></div></div>
+        <span class="algo-pct">70%</span>
+      </div>
+      <div class="algo-row">
+        <span class="algo-lbl">🏭 Industry Preference</span>
+        <div class="algo-bar-bg"><div class="algo-bar-fill" style="width:20%;background:var(--green)"></div></div>
+        <span class="algo-pct">20%</span>
+      </div>
+      <div class="algo-row">
+        <span class="algo-lbl">📈 GPA Bonus</span>
+        <div class="algo-bar-bg"><div class="algo-bar-fill" style="width:10%;background:var(--amber)"></div></div>
+        <span class="algo-pct">10%</span>
+      </div>
+      <div class="divider"></div>
+      <p class="text-sm text-muted" style="line-height:1.65">
+        <strong style="color:var(--ink2)">Skill score</strong> = (matching skills ÷ org required skills) × 70.
+        A <strong style="color:var(--ink2)">preference bonus</strong> of 20 is added when the org's industry matches the student's listed preferences.
+        A <strong style="color:var(--ink2)">GPA bonus</strong> (capped at 10) rewards stronger academic performance.
+      </p>
+    </div>`;
+}
+
+async function doRun() {
+  const btn=document.getElementById('runBtn'); if(btn){btn.textContent='Running…';btn.disabled=true;}
+  const n = await runMatching();
+  showAlert('alertBox', `✓ ${n} student(s) successfully matched! <a href="placements.html" style="color:var(--green);font-weight:700">View placements →</a>`, 'success');
+  setTimeout(renderMatch, 100);
+}
+
+function doClear() {
+  if (!confirm('Clear ALL placements? This cannot be undone.')) return;
+  DB.set('placements',[]);
+  showAlert('alertBox','All placements cleared.','info');
+  setTimeout(renderMatch, 100);
+}
+</script>
+</body>
+</html>

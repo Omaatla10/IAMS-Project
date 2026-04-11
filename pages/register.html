@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Create Account — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<nav class="pub-nav">
+  <div class="pub-brand"><strong>IAMS</strong><span class="dot">.</span></div>
+  <div class="pub-nav-r">
+    <a href="../index.html" class="btn btn-ghost btn-sm">← Home</a>
+    <a href="login.html" class="btn btn-outline btn-sm">Sign In</a>
+  </div>
+</nav>
+
+<div class="auth-page">
+  <div class="auth-left">
+    <div class="auth-left-content">
+      <p style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:1.5rem">University of Botswana · IAMS</p>
+      <h2>Join the<br><em>IAMS platform</em></h2>
+      <p>Create your account and start the attachment process as a student, organization, or coordinator.</p>
+      <div class="auth-perk">
+        <div class="auth-perk-icon">🎓</div>
+        <div><h4>Students</h4><p>List your skills, browse organizations, and get matched to the best fit automatically.</p></div>
+      </div>
+      <div class="auth-perk">
+        <div class="auth-perk-icon">🏢</div>
+        <div><h4>Organizations</h4><p>Specify requirements and receive pre-matched students ready for attachment.</p></div>
+      </div>
+      <div class="auth-perk">
+        <div class="auth-perk-icon">⚙️</div>
+        <div><h4>Coordinators</h4><p>Manage the full process — matching, placements, and monitoring all in one place.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-right">
+    <div class="auth-form-box">
+      <h2>Create account</h2>
+      <p class="auth-sub">Choose your role and fill in your details.</p>
+      <div id="alertBox"></div>
+
+      <div class="form-group">
+        <label class="form-label">I am a…</label>
+        <div class="role-selector">
+          <div class="role-opt"><input type="radio" name="role" id="rs" value="student" required><label for="rs"><span class="re">🎓</span>Student</label></div>
+          <div class="role-opt"><input type="radio" name="role" id="ro" value="organization"><label for="ro"><span class="re">🏢</span>Organization</label></div>
+          <div class="role-opt"><input type="radio" name="role" id="rc" value="coordinator"><label for="rc"><span class="re">⚙️</span>Coordinator</label></div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" id="email" class="form-control" placeholder="you@example.com">
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="password" class="form-control" placeholder="Min 6 characters">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password</label>
+          <input type="password" id="confirm" class="form-control" placeholder="Repeat password">
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full btn-lg" onclick="doRegister()">Create Account →</button>
+      <div class="auth-footer">Already have an account? <a href="login.html">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/app.js"></script>
+<script>
+async function doRegister() {
+  const role  = document.querySelector('input[name="role"]:checked')?.value;
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const pw    = document.getElementById('password').value;
+  const conf  = document.getElementById('confirm').value;
+  if (!role)       { showAlert('alertBox','Please select a role.','error'); return; }
+  if (!email)      { showAlert('alertBox','Please enter your email.','error'); return; }
+  if (pw.length<6) { showAlert('alertBox','Password must be at least 6 characters.','error'); return; }
+  if (pw!==conf)   { showAlert('alertBox','Passwords do not match.','error'); return; }
+  const btn = document.querySelector('button[onclick="doRegister()"]');
+  if (btn) { btn.textContent='Creating account…'; btn.disabled=true; }
+  try {
+    await registerUser(email, pw, role);
+    window.location.href = 'profile.html?new=1';
+  } catch(err) {
+    showAlert('alertBox', err.message, 'error');
+    if (btn) { btn.textContent='Create Account →'; btn.disabled=false; }
+  }
+}
+</script>
+</body>
+</html>

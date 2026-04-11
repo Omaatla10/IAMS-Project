@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Placements — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+let currentUser;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  currentUser = initAppShell('Placements');
+  if (!currentUser) return;
+  await renderPlacements();
+});
+
+async function renderPlacements() {
+  const [placements, students, orgs] = await Promise.all([getPlacements(), getStudents(), getOrganizations()]);
+  const el = document.getElementById('pageContent');
+
+  const rows = placements.map(p=>{
+    const s = students.find(x=>x.id===p.student_id);
+    const o = orgs.find(x=>x.id===p.org_id);
+    const init = (s?.fullName||'S')[0].toUpperCase();
+    const confirmBtn = currentUser?.role==='coordinator' && p.status!=='confirmed'
+      ? `<button class="btn btn-success btn-sm" onclick="confirm_('${p.id}')">✓ Confirm</button>`
+      : p.status==='confirmed' ? '<span class="text-xs text-muted">Done</span>' : '';
+    return `<tr>
+      <td><div class="d-flex align-center gap-2"><div class="av">${init}</div><strong>${s?.fullName||'Unknown'}</strong></div></td>
+      <td><code style="font-size:.75rem;color:var(--muted);background:var(--cream2);padding:2px 7px;border-radius:4px">${s?.studentId||'—'}</code></td>
+      <td><span style="font-weight:500">${o?.orgName||'Unknown'}</span></td>
+      <td class="text-sm text-muted">${o?.industry||'—'}</td>
+      <td><div class="score-wrap"><div class="score-bar"><div class="score-fill" style="width:${p.score}%"></div></div><span class="score-num">${p.score}%</span></div></td>
+      <td><span class="badge ${p.status==='confirmed'?'badge-green':'badge-amber'}">${p.status==='confirmed'?'✓ Confirmed':'⏳ Pending'}</span></td>
+      ${currentUser?.role==='coordinator'?`<td>${confirmBtn}</td>`:''}
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="page-header">
+      <div class="page-header-left"><h1>Placement Results</h1><p>${placements.length} placement(s) recorded</p></div>
+      <a href="match.html" class="btn btn-outline btn-sm">← Back to Matching</a>
+    </div>
+    <div id="alertBox"></div>
+    ${placements.length ? `
+    <div class="table-wrap">
+      <div class="table-header">
+        <div class="table-header-title">All Placements</div>
+      </div>
+      <table>
+        <thead><tr><th>Student</th><th>ID</th><th>Organization</th><th>Industry</th><th>Match Score</th><th>Status</th>${currentUser?.role==='coordinator'?'<th>Action</th>':''}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`
+    :`<div class="empty"><div class="empty-icon">📋</div><h3>No placements yet</h3><p>Run the matching algorithm to generate placements.</p>${currentUser?.role==='coordinator'?'<a href="match.html" class="btn btn-blue mt-3">🎯 Run Matching →</a>':''}</div>`}`;
+}
+
+function confirm_(id) {
+  const placements = DB.get('placements')||[];
+  const i = placements.findIndex(p=>p.id===id);
+  if (i>-1) { placements[i].status='confirmed'; DB.set('placements',placements); renderPlacements(); showAlert('alertBox','✓ Placement confirmed.','success'); }
+}
+</script>
+</body>
+</html>
