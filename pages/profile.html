@@ -35,7 +35,7 @@ async function loadProfile() {
 
 function renderProfile() {
   const u = currentUser; const p = profileData;
-  const av = u.role==='student'?'🎓':u.role==='organization'?'🏢':'⚙️';
+  const av = u.role==='student'?'🧑‍🎓':u.role==='organization'?'🏢':'🧑‍🏫';
   const name = p.full_name||p.org_name||u.email.split('@')[0];
 
   let sidebar = `
