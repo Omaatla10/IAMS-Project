@@ -29,7 +29,7 @@ function buildSidebar(role) {
       <nav class="sb-links">${links}</nav>
       <div class="sb-bottom">
         <a class="sb-link" data-page="profile.html" href="profile.html"><span class="sb-icon">👤</span>Profile</a>
-        <a class="sb-link" href="#" onclick="Auth.logout();return false;"><span class="sb-icon">🚪</span>Logout</a>
+        <a class="sb-link" href="#" onclick="Auth.logout();return false;"><span class="sb-icon">⏻</span>Logout</a>
         <div class="sb-user">
           <div class="sb-av" id="sbUserAv">?</div>
           <div class="sb-user-info">
