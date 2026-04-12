@@ -15,7 +15,7 @@ function buildSidebar(role) {
     links = `
       <a class="sb-link" data-page="dashboard.html"     href="dashboard.html"><span class="sb-icon">▦</span>Dashboard</a>
       <a class="sb-link" data-page="organizations.html" href="organizations.html"><span class="sb-icon">🏢</span>Organizations</a>
-      <a class="sb-link" data-page="my-placement.html"  href="my-placement.html"><span class="sb-icon">📍</span>My Placement</a>`;
+      <a class="sb-link" data-page="my-placement.html"  href="my-placement.html"><span class="sb-icon">🧑‍💼</span>My Placement</a>`;
   } else if (role === 'organization') {
     links = `
       <a class="sb-link" data-page="dashboard.html"     href="dashboard.html"><span class="sb-icon">▦</span>Dashboard</a>
