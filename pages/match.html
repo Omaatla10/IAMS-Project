@@ -15,14 +15,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const u = initAppShell('Match');
   if (!u) return;
   Auth.require('coordinator');
-  renderMatch();
+  await renderMatch();
 });
 
-function renderMatch() {
-  const students   = DB.get('students')     ||[];
-  const orgs       = DB.get('organizations')||[];
-  const placements = DB.get('placements')   ||[];
-  const unmatched  = students.filter(s=>!placements.find(p=>p.studentId===s.id)).length;
+async function renderMatch() {
+  const [students, orgs, placements] = await Promise.all([getStudents(), getOrganizations(), getPlacements()]);
+  const unmatched  = students.filter(s=>!placements.find(p=>p.student_id===s.id)).length;
 
   document.getElementById('pageContent').innerHTML = `
     <div class="page-header">
@@ -86,11 +84,11 @@ async function doRun() {
   setTimeout(renderMatch, 100);
 }
 
-function doClear() {
+async function doClear() {
   if (!confirm('Clear ALL placements? This cannot be undone.')) return;
-  DB.set('placements',[]);
+  await clearPlacements();
   showAlert('alertBox','All placements cleared.','info');
-  setTimeout(renderMatch, 100);
+  await renderMatch();
 }
 </script>
 </body>
