@@ -7,7 +7,7 @@ function buildSidebar(role) {
   if (role === 'coordinator') {
     links = `
       <a class="sb-link" data-page="dashboard.html" href="dashboard.html"><span class="sb-icon">▦</span>Dashboard</a>
-      <a class="sb-link" data-page="students.html"  href="students.html"><span class="sb-icon">🎓</span>Students</a>
+      <a class="sb-link" data-page="students.html"  href="students.html"><span class="sb-icon">🧑‍🎓</span>Students</a>
       <a class="sb-link" data-page="organizations.html" href="organizations.html"><span class="sb-icon">🏢</span>Organizations</a>
       <a class="sb-link" data-page="match.html"     href="match.html"><span class="sb-icon">🎯</span>Match</a>
       <a class="sb-link" data-page="placements.html" href="placements.html"><span class="sb-icon">📋</span>Placements</a>`;
@@ -15,7 +15,7 @@ function buildSidebar(role) {
     links = `
       <a class="sb-link" data-page="dashboard.html"     href="dashboard.html"><span class="sb-icon">▦</span>Dashboard</a>
       <a class="sb-link" data-page="organizations.html" href="organizations.html"><span class="sb-icon">🏢</span>Organizations</a>
-      <a class="sb-link" data-page="my-placement.html"  href="my-placement.html"><span class="sb-icon">🧑‍💼</span>My Placement</a>`;
+      <a class="sb-link" data-page="my-placement.html"  href="my-placement.html"><span class="sb-icon">💼</span>My Placement</a>`;
   } else if (role === 'organization') {
     links = `
       <a class="sb-link" data-page="dashboard.html"     href="dashboard.html"><span class="sb-icon">▦</span>Dashboard</a>
