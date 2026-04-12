@@ -16,7 +16,7 @@ let allOrgs=[];
 document.addEventListener('DOMContentLoaded', async () => {
   const u = initAppShell('Organizations');
   if (!u) return;
-  allOrgs = DB.get('organizations')||[];
+  allOrgs = await getOrganizations();
   render(allOrgs);
 });
 
