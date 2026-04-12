@@ -178,7 +178,7 @@ function renderSidebarUser() {
   const avEl   = document.getElementById('sbUserAv');
   if (nameEl) nameEl.textContent = u.full_name || u.org_name || u.fullName || u.orgName || u.email?.split('@')[0];
   if (roleEl) roleEl.textContent = u.role;
-  if (avEl)   avEl.textContent   = u.role === 'student' ? '🎓' : u.role === 'organization' ? '🏢' : '⚙️';
+  if (avEl)   avEl.textContent   = u.role === 'student' ? '🧑‍🎓' : u.role === 'organization' ? '🏢' : '🧑‍🏫';
   const path = window.location.pathname.split('/').pop();
   document.querySelectorAll('.sb-link[data-page]').forEach(a => { if (a.dataset.page === path) a.classList.add('active'); });
 }
