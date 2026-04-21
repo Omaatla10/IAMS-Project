@@ -15,7 +15,12 @@ async function _q(fn) {
 //  AUTH
 // ════════════════════════════════════════════
 const Auth = {
-  current: () => { const r = localStorage.getItem('iams_user'); return r ? JSON.parse(r) : null; },
+  current: () => {
+    const r = localStorage.getItem('iams_user');
+    if (!r) return null;
+    try { return JSON.parse(r); }
+    catch { localStorage.removeItem('iams_user'); return null; }
+  },
   login:   (u) => localStorage.setItem('iams_user', JSON.stringify(u)),
   logout: async () => {
     await _sb.auth.signOut();
@@ -41,7 +46,7 @@ async function loginUser(email, password) {
   const profiles = await _q(() => _sb.from('profiles').select('*').eq('id', uid));
   const prof = profiles[0];
   if (!prof) throw new Error('Account not found. Please register.');
-  let user = { id: uid, email, role: prof.role };
+  let user = { id: uid, email, role: prof.role, avatar_url: prof.avatar_url || null };
   if (prof.role === 'student') {
     const r = await _q(() => _sb.from('students').select('*').eq('user_id', uid));
     if (r[0]) Object.assign(user, r[0], { id: uid });
@@ -92,20 +97,85 @@ async function getCoordByUserId(uid)   { const r = await _q(() => _sb.from('coor
 // ════════════════════════════════════════════
 //  PROFILE SAVE
 // ════════════════════════════════════════════
+async function updateProfileMetadata(uid, fields) {
+  if (!fields || !Object.keys(fields).length) return;
+  await _q(() => _sb.from('profiles').update(fields).eq('id', uid));
+}
+
 async function saveStudentProfile(uid, data) {
-  await _q(() => _sb.from('students').update(data).eq('user_id', uid));
+  const existing = await getStudentByUserId(uid);
+  if (existing) {
+    await _q(() => _sb.from('students').update(data).eq('user_id', uid));
+  } else {
+    await _q(() => _sb.from('students').insert({ user_id: uid, email: Auth.current()?.email || '', ...data }));
+  }
+  if (data.avatar_url) await updateProfileMetadata(uid, { avatar_url: data.avatar_url });
   const u = await getStudentByUserId(uid);
   Auth.login({ ...Auth.current(), ...u, id: Auth.current().id });
 }
 async function saveOrgProfile(uid, data) {
-  await _q(() => _sb.from('organizations').update(data).eq('user_id', uid));
+  const existing = await getOrgByUserId(uid);
+  if (existing) {
+    await _q(() => _sb.from('organizations').update(data).eq('user_id', uid));
+  } else {
+    await _q(() => _sb.from('organizations').insert({ user_id: uid, email: Auth.current()?.email || '', ...data }));
+  }
+  if (data.avatar_url) await updateProfileMetadata(uid, { avatar_url: data.avatar_url });
   const u = await getOrgByUserId(uid);
   Auth.login({ ...Auth.current(), ...u, id: Auth.current().id });
 }
 async function saveCoordProfile(uid, data) {
-  await _q(() => _sb.from('coordinators').update(data).eq('user_id', uid));
+  const existing = await getCoordByUserId(uid);
+  if (existing) {
+    await _q(() => _sb.from('coordinators').update(data).eq('user_id', uid));
+  } else {
+    await _q(() => _sb.from('coordinators').insert({ user_id: uid, email: Auth.current()?.email || '', ...data }));
+  }
+  if (data.avatar_url) await updateProfileMetadata(uid, { avatar_url: data.avatar_url });
   const u = await getCoordByUserId(uid);
   Auth.login({ ...Auth.current(), ...u, id: Auth.current().id });
+}
+
+const STORAGE_BUCKET = 'user-assets';
+
+async function uploadStorageFile(path, file) {
+  const { data, error } = await _sb.storage.from(STORAGE_BUCKET).upload(path, file, { cacheControl: '3600', upsert: true });
+  if (error) throw error;
+  return getPublicUrl(path);
+}
+
+function getPublicUrl(path) {
+  return _sb.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+}
+
+async function saveAvatar(uid, file) {
+  const ext = file.name.split('.').pop();
+  const path = `avatars/${uid}.${ext}`;
+  const url = await uploadStorageFile(path, file);
+  await updateProfileMetadata(uid, { avatar_url: url });
+  const current = Auth.current();
+  if (current) Auth.login({ ...current, avatar_url: url });
+  return url;
+}
+
+async function saveStudentResume(uid, file) {
+  const ext = file.name.split('.').pop();
+  const path = `resumes/${uid}.${ext}`;
+  const url = await uploadStorageFile(path, file);
+  await _q(() => _sb.from('students').update({ resume_url: url }).eq('user_id', uid));
+  const current = Auth.current();
+  if (current) Auth.login({ ...current, resume_url: url });
+  return url;
+}
+
+async function saveOrgPoster(orgId, file) {
+  const ext = file.name.split('.').pop();
+  const path = `posters/${orgId}.${ext}`;
+  const url = await uploadStorageFile(path, file);
+  await _q(() => _sb.from('organizations').update({ poster_url: url }).eq('id', orgId));
+  const current = Auth.current();
+  if (current) Auth.login({ ...current, poster_url: url });
+  return url;
 }
 
 // ════════════════════════════════════════════
@@ -154,7 +224,7 @@ function showAlert(containerId, msg, type = 'info') {
   if (!c) return;
   const el = document.createElement('div');
   el.className = `alert alert-${type}`;
-  el.innerHTML = `${msg}<button class="alert-dismiss" onclick="this.parentElement.remove()">✕</button>`;
+  el.innerHTML = `${msg}<button class="alert-dismiss" onclick="this.parentElement.remove()">×</button>`;
   c.prepend(el);
   setTimeout(() => el.remove(), 6000);
 }
@@ -178,7 +248,13 @@ function renderSidebarUser() {
   const avEl   = document.getElementById('sbUserAv');
   if (nameEl) nameEl.textContent = u.full_name || u.org_name || u.fullName || u.orgName || u.email?.split('@')[0];
   if (roleEl) roleEl.textContent = u.role;
-  if (avEl)   avEl.textContent   = u.role === 'student' ? '🧑‍🎓' : u.role === 'organization' ? '🏢' : '🧑‍🏫';
+  if (avEl) {
+    if (u.avatar_url) {
+      avEl.innerHTML = `<img src="${u.avatar_url}" alt="Avatar">`;
+    } else {
+      avEl.textContent = u.role === 'student' ? 'S' : u.role === 'organization' ? 'O' : 'C';
+    }
+  }
   const path = window.location.pathname.split('/').pop();
   document.querySelectorAll('.sb-link[data-page]').forEach(a => { if (a.dataset.page === path) a.classList.add('active'); });
 }
