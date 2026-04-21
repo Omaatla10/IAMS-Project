@@ -19,19 +19,19 @@
 <div class="auth-page">
   <div class="auth-left">
     <div class="auth-left-content">
-      <p style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:1.5rem">University of Botswana · IAMS</p>
+      <p class="auth-brand-note">University of Botswana · IAMS</p>
       <h2>Join the<br><em>IAMS platform</em></h2>
       <p>Create your account and start the attachment process as a student, organization, or coordinator.</p>
       <div class="auth-perk">
-        <div class="auth-perk-icon">🎓</div>
+        <span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></span>
         <div><h4>Students</h4><p>List your skills, browse organizations, and get matched to the best fit automatically.</p></div>
       </div>
       <div class="auth-perk">
-        <div class="auth-perk-icon">🏢</div>
+        <span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>
         <div><h4>Organizations</h4><p>Specify requirements and receive pre-matched students ready for attachment.</p></div>
       </div>
       <div class="auth-perk">
-        <div class="auth-perk-icon">⚙️</div>
+        <span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
         <div><h4>Coordinators</h4><p>Manage the full process — matching, placements, and monitoring all in one place.</p></div>
       </div>
     </div>
@@ -41,33 +41,35 @@
     <div class="auth-form-box">
       <h2>Create account</h2>
       <p class="auth-sub">Choose your role and fill in your details.</p>
-      <div id="alertBox"></div>
+      <div id="alertBox" class="auth-alert" role="alert" aria-live="polite"></div>
 
-      <div class="form-group">
-        <label class="form-label">I am a…</label>
-        <div class="role-selector">
-          <div class="role-opt"><input type="radio" name="role" id="rs" value="student" required><label for="rs"><span class="re">🎓</span>Student</label></div>
-          <div class="role-opt"><input type="radio" name="role" id="ro" value="organization"><label for="ro"><span class="re">🏢</span>Organization</label></div>
-          <div class="role-opt"><input type="radio" name="role" id="rc" value="coordinator"><label for="rc"><span class="re">⚙️</span>Coordinator</label></div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Email Address</label>
-        <input type="email" id="email" class="form-control" placeholder="you@example.com">
-      </div>
-      <div class="form-grid">
+      <form id="registerForm" autocomplete="on">
         <div class="form-group">
-          <label class="form-label">Password</label>
-          <input type="password" id="password" class="form-control" placeholder="Min 6 characters">
+          <label class="form-label">I am a…</label>
+          <div class="role-selector">
+            <div class="role-opt"><input type="radio" name="role" id="rs" value="student" required><label for="rs"><span class="re"></span>Student</label></div>
+            <div class="role-opt"><input type="radio" name="role" id="ro" value="organization"><label for="ro"><span class="re"></span>Organization</label></div>
+            <div class="role-opt"><input type="radio" name="role" id="rc" value="coordinator"><label for="rc"><span class="re"></span>Coordinator</label></div>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Confirm Password</label>
-          <input type="password" id="confirm" class="form-control" placeholder="Repeat password">
-        </div>
-      </div>
 
-      <button class="btn btn-primary btn-full btn-lg" onclick="doRegister()">Create Account →</button>
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input type="email" id="email" class="form-control" placeholder="you@example.com" autocomplete="username" required>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label" for="password">Password</label>
+            <input type="password" id="password" class="form-control" placeholder="Min 6 characters" autocomplete="new-password" minlength="6" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="confirm">Confirm Password</label>
+            <input type="password" id="confirm" class="form-control" placeholder="Repeat password" autocomplete="new-password" minlength="6" required>
+          </div>
+        </div>
+
+        <div class="auth-btn-wrap"><button type="submit" class="btn btn-primary btn-full btn-lg">Create Account</button></div>
+      </form>
       <div class="auth-footer">Already have an account? <a href="login.html">Sign in</a></div>
     </div>
   </div>
@@ -85,7 +87,7 @@ async function doRegister() {
   if (!email)      { showAlert('alertBox','Please enter your email.','error'); return; }
   if (pw.length<6) { showAlert('alertBox','Password must be at least 6 characters.','error'); return; }
   if (pw!==conf)   { showAlert('alertBox','Passwords do not match.','error'); return; }
-  const btn = document.querySelector('button[onclick="doRegister()"]');
+  const btn = document.querySelector('#registerForm button[type="submit"]');
   if (btn) { btn.textContent='Creating account…'; btn.disabled=true; }
   try {
     await registerUser(email, pw, role);
@@ -95,6 +97,13 @@ async function doRegister() {
     if (btn) { btn.textContent='Create Account →'; btn.disabled=false; }
   }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('registerForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    await doRegister();
+  });
+});
 </script>
 </body>
 </html>

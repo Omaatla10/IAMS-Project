@@ -23,32 +23,32 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function renderCoordinator(u, el) {
   const [students, orgs, placements] = await Promise.all([getStudents(), getOrganizations(), getPlacements()]);
-  const unmatched  = students.filter(s=>!placements.find(p=>p.studentId===s.id)).length;
+  const unmatched  = students.filter(s=>!placements.find(p=>p.student_id===s.id)).length;
   el.innerHTML = `
     <div class="page-header">
       <div class="page-header-left">
-        <h1>Good to see you, ${u.fullName||'Coordinator'}</h1>
-        <p>${u.department||'Department not set'} &nbsp;·&nbsp; ${u.staffId||''}</p>
+        <h1>Good to see you, ${u.full_name||'Coordinator'}</h1>
+        <p>${u.department||'Department not set'} &nbsp;·&nbsp; ${u.staff_id||''}</p>
       </div>
     </div>
     <div class="stats-row">
-      <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${students.length}</div><div class="stat-lbl">Students</div></div>
-      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${orgs.length}</div><div class="stat-lbl">Organizations</div></div>
-      <div class="stat-card"><div class="stat-val" style="color:var(--amber)">${placements.length}</div><div class="stat-lbl">Placed</div></div>
-      <div class="stat-card"><div class="stat-val" style="color:var(--red)">${unmatched}</div><div class="stat-lbl">Unmatched</div></div>
+      <div class="stat-card"><div class="stat-val blue">${students.length}</div><div class="stat-lbl">Students</div></div>
+      <div class="stat-card"><div class="stat-val green">${orgs.length}</div><div class="stat-lbl">Organizations</div></div>
+      <div class="stat-card"><div class="stat-val amber">${placements.length}</div><div class="stat-lbl">Placed</div></div>
+      <div class="stat-card"><div class="stat-val red">${unmatched}</div><div class="stat-lbl">Unmatched</div></div>
     </div>
     <div class="card-grid">
-      <a href="students.html" class="action-card" style="--ac:var(--blue)"><div class="ac-icon">🎓</div><h3>View Students</h3><p>Browse, search and filter all registered students and their skill profiles.</p><span class="ac-arrow">↗</span></a>
-      <a href="organizations.html" class="action-card" style="--ac:var(--green)"><div class="ac-icon">🏢</div><h3>View Organizations</h3><p>Browse registered organizations, their required skills and open positions.</p><span class="ac-arrow">↗</span></a>
-      <a href="match.html" class="action-card" style="--ac:var(--amber)"><div class="ac-icon">🎯</div><h3>Run Matching</h3><p>Execute the skill-based algorithm to assign students to organizations.</p><span class="ac-arrow">↗</span></a>
-      <a href="placements.html" class="action-card" style="--ac:#7c3aed"><div class="ac-icon">📋</div><h3>View Placements</h3><p>Review match scores, confirm allocations, and track placement status.</p><span class="ac-arrow">↗</span></a>
+      <a href="students.html" class="action-card ac-blue"><span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><h3>View Students</h3><p>Browse, search and filter all registered students and their skill profiles.</p><span class="ac-arrow">↗</span></a>
+      <a href="organizations.html" class="action-card ac-green"><span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18V7H3z"/><path d="M7 21V11"/><path d="M12 21V11"/><path d="M17 21V11"/></svg></span><h3>View Organizations</h3><p>Browse registered organizations, their required skills and open positions.</p><span class="ac-arrow">↗</span></a>
+      <a href="match.html" class="action-card ac-amber"><span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><h3>Run Matching</h3><p>Execute the skill-based algorithm to assign students to organizations.</p><span class="ac-arrow">↗</span></a>
+      <a href="placements.html" class="action-card ac-purple"><span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></span><h3>View Placements</h3><p>Review match scores, confirm allocations, and track placement status.</p><span class="ac-arrow">↗</span></a>
     </div>`;
 }
 
 async function renderStudent(u, el) {
   const student = await getStudentByUserId(u.id);
   const [placements, orgs] = await Promise.all([getPlacements(), getOrganizations()]);
-  if (!student) { el.innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><h3>Profile incomplete</h3><p><a href="profile.html" style="color:var(--blue)">Complete your profile →</a></p></div>`; return; }
+  if (!student) { el.innerHTML=`<div class="empty"><span class="icon-wrap" style="display:flex;align-items:center;justify-content:center;opacity:0.4;margin-bottom:0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><h3>Profile incomplete</h3><p><a href="profile.html" class="text-blue">Complete your profile →</a></p></div>`; return; }
   const placement = placements.find(p=>p.student_id===student.id);
   const org = placement ? orgs.find(o=>o.id===placement.org_id) : null;
   const skills = split(student.skills);
@@ -61,29 +61,29 @@ async function renderStudent(u, el) {
       </div>
     </div>
     <div class="stats-row">
-      <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${skills.length}</div><div class="stat-lbl">Skills Listed</div></div>
-      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${student.gpa||'—'}</div><div class="stat-lbl">GPA</div></div>
-      <div class="stat-card" style="color:${placement?'var(--green)':'var(--amber)'}"><div class="stat-val">${placement?'Placed':'Pending'}</div><div class="stat-lbl">Placement</div></div>
+      <div class="stat-card"><div class="stat-val blue">${skills.length}</div><div class="stat-lbl">Skills Listed</div></div>
+      <div class="stat-card"><div class="stat-val green">${student.gpa||'—'}</div><div class="stat-lbl">GPA</div></div>
+      <div class="stat-card"><div class="stat-val ${placement?'green':'amber'}">${placement?'Placed':'Pending'}</div><div class="stat-lbl">Placement</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div class="grid-two">
       <div class="card">
         <h3>My Skills</h3>
         ${skills.length?`<div class="tags">${skills.map(s=>`<span class="tag">${s}</span>`).join('')}</div>`:'<p class="text-muted text-sm">No skills listed yet.</p>'}
-        ${prefs.length?`<div class="divider"></div><p class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700">Preferences</p><div class="tags">${prefs.map(p=>`<span class="tag" style="border-color:var(--green-bd);color:var(--green)">${p}</span>`).join('')}</div>`:''}
+        ${prefs.length?`<div class="divider"></div><p class="text-xs text-muted mb-2 text-uppercase">Preferences</p><div class="tags">${prefs.map(p=>`<span class="tag tag-green">${p}</span>`).join('')}</div>`:''}
         <div class="mt-3"><a href="profile.html" class="btn btn-outline btn-sm">Edit Profile</a></div>
       </div>
       <div class="card">
         <h3>My Placement</h3>
         ${placement&&org?`
-          <div style="padding:1rem;background:var(--cream);border:1px solid var(--border);border-radius:8px;margin-bottom:1rem">
-            <p class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700">Allocated Organization</p>
-            <p style="font-family:var(--serif);font-size:1.1rem">${org.org_name}</p>
+          <div class="mini-card">
+            <p class="text-xs text-muted mb-2 text-uppercase">Allocated Organization</p>
+            <p class="font-serif text-lg">${org.org_name}</p>
             <p class="text-muted text-sm">${org.industry||''}</p>
-            <span class="badge ${placement.status==='confirmed'?'badge-green':'badge-amber'} mt-2">${placement.status==='confirmed'?'✓ Confirmed':'⏳ Pending'}</span>
+            <span class="badge ${placement.status==='confirmed'?'badge-green':'badge-amber'} mt-2">${placement.status==='confirmed'?'Confirmed':'Pending'}</span>
             <div class="score-wrap mt-2"><div class="score-bar"><div class="score-fill" style="width:${placement.score}%"></div></div><span class="score-num">${placement.score}%</span></div>
           </div>
           <a href="my-placement.html" class="btn btn-blue btn-sm">View Full Details →</a>`
-        :`<div class="empty" style="padding:1.5rem 0"><div class="empty-icon">⏳</div><p>Not matched yet. The coordinator will run the algorithm soon.</p></div>
+        :`<div class="empty empty-padded"><span class="icon-wrap" style="display:flex;align-items:center;justify-content:center;opacity:0.4;margin-bottom:0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><p>Not matched yet. The coordinator will run the algorithm soon.</p></div>
           <a href="organizations.html" class="btn btn-outline btn-sm">Browse Organizations</a>`}
       </div>
     </div>`;
@@ -91,7 +91,7 @@ async function renderStudent(u, el) {
 
 async function renderOrg(u, el) {
   const org = await getOrgByUserId(u.id);
-  if (!org) { el.innerHTML=`<div class="empty"><div class="empty-icon">⚠️</div><h3>Profile incomplete</h3><p><a href="profile.html" style="color:var(--blue)">Complete your profile →</a></p></div>`; return; }
+  if (!org) { el.innerHTML=`<div class="empty"><span class="icon-wrap" style="display:flex;align-items:center;justify-content:center;opacity:0.4;margin-bottom:0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><h3>Profile incomplete</h3><p><a href="profile.html" class="text-blue">Complete your profile →</a></p></div>`; return; }
   const [placements, students] = await Promise.all([getPlacements(), getStudents()]);
   const myP = placements.filter(p=>p.org_id===org.id);
   const skills = split(org.required_skills);
@@ -103,20 +103,20 @@ async function renderOrg(u, el) {
       </div>
     </div>
     <div class="stats-row">
-      <div class="stat-card"><div class="stat-val" style="color:var(--blue)">${org.positions||1}</div><div class="stat-lbl">Positions</div></div>
-      <div class="stat-card"><div class="stat-val" style="color:var(--green)">${myP.length}</div><div class="stat-lbl">Allocated</div></div>
-      <div class="stat-card"><div class="stat-val" style="color:var(--amber)">${skills.length}</div><div class="stat-lbl">Req. Skills</div></div>
+      <div class="stat-card"><div class="stat-val blue">${org.positions||1}</div><div class="stat-lbl">Positions</div></div>
+      <div class="stat-card"><div class="stat-val green">${myP.length}</div><div class="stat-lbl">Allocated</div></div>
+      <div class="stat-card"><div class="stat-val amber">${skills.length}</div><div class="stat-lbl">Req. Skills</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div class="grid-two">
       <div class="card">
         <h3>Required Skills</h3>
         ${skills.length?`<div class="tags">${skills.map(s=>`<span class="tag">${s}</span>`).join('')}</div>`:'<p class="text-muted text-sm">None listed.</p>'}
-        ${org.description?`<div class="divider"></div><p class="text-sm" style="color:var(--ink2);line-height:1.65">${org.description}</p>`:''}
+        ${org.description?`<div class="divider"></div><p class="text-sm text-ink2 leading-loose">${org.description}</p>`:''}
         <div class="mt-3"><a href="profile.html" class="btn btn-outline btn-sm">Edit Profile</a></div>
       </div>
       <div class="card">
         <h3>Allocated Students</h3>
-        ${myP.length?myP.map(p=>{const s=students.find(x=>x.id===p.student_id);return`<div style="padding:.75rem;background:var(--cream);border-radius:8px;margin-bottom:8px;border:1px solid var(--border)"><div class="d-flex align-center justify-between"><div><p style="font-weight:600;font-size:.88rem">${s?.fullName||'Student'}</p><p class="text-xs text-muted">${s?.studentId||''}</p></div><span class="badge ${p.status==='confirmed'?'badge-green':'badge-amber'}">${p.status}</span></div><div class="score-wrap mt-2"><div class="score-bar"><div class="score-fill" style="width:${p.score}%"></div></div><span class="score-num">${p.score}%</span></div></div>`;}).join(''):'<div class="empty" style="padding:1.5rem 0"><div class="empty-icon">⏳</div><p>No students allocated yet.</p></div>'}
+        ${myP.length?myP.map(p=>{const s=students.find(x=>x.id===p.student_id);return`<div class="mini-card"><div class="d-flex align-center justify-between"><div><p class="text-strong text-lg">${s?.full_name||'Student'}</p><p class="text-xs text-muted">${s?.student_id||''}</p></div><span class="badge ${p.status==='confirmed'?'badge-green':'badge-amber'}">${p.status}</span></div><div class="score-wrap mt-2"><div class="score-bar"><div class="score-fill" style="width:${p.score}%"></div></div><span class="score-num">${p.score}%</span></div></div>`;}).join(''):'<div class="empty empty-padded"><span class="icon-wrap" style="display:flex;align-items:center;justify-content:center;opacity:0.4;margin-bottom:0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><p>No students allocated yet.</p></div>'}
       </div>
     </div>`;
 }

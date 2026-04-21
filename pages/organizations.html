@@ -12,20 +12,21 @@
 <script src="../js/sidebar.js"></script>
 <script>
 let allOrgs=[];
+let currentSearch = '';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const u = initAppShell('Organizations');
   if (!u) return;
   allOrgs = await getOrganizations();
-  render(allOrgs);
+  render(allOrgs, currentSearch);
 });
 
 function filter() {
-  const q = document.getElementById('srch').value.toLowerCase();
-  render(q ? allOrgs.filter(o=>[o.org_name,o.industry,o.required_skills,o.description].join(' ').toLowerCase().includes(q)) : allOrgs);
+  currentSearch = document.getElementById('srch').value.toLowerCase();
+  render(currentSearch ? allOrgs.filter(o=>[o.org_name,o.industry,o.required_skills,o.description].join(' ').toLowerCase().includes(currentSearch)) : allOrgs, currentSearch);
 }
 
-function render(orgs) {
+function render(orgs, q = '') {
   const el = document.getElementById('pageContent');
   const cards = orgs.map(o=>{
     const skills = split(o.required_skills);
@@ -34,30 +35,30 @@ function render(orgs) {
     return `<div class="card hover">
       <div class="d-flex align-center justify-between mb-2">
         <div class="d-flex align-center gap-2">
-          <div class="av av-green" style="width:38px;height:38px;border-radius:8px;font-size:1rem">🏢</div>
+          <div class="av av-green av-lg"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18V7H3z"></path><path d="M7 21V11"></path><path d="M12 21V11"></path><path d="M17 21V11"></path></svg></div>
           <div>
-            <h3 style="margin:0;font-size:.95rem">${o.org_name||'Unnamed'}</h3>
+            <h3 class="mb-0 text-md">${o.org_name||'Unnamed'}</h3>
             <p class="text-xs text-muted">${o.industry||'Industry not set'}</p>
           </div>
         </div>
         <span class="badge badge-blue">${o.positions||1} pos.</span>
       </div>
-      ${o.description?`<p class="text-sm" style="color:var(--ink2);line-height:1.55;margin-bottom:.75rem">${o.description.slice(0,130)}${o.description.length>130?'…':''}</p>`:''}
-      <p class="text-xs text-muted mb-2" style="text-transform:uppercase;letter-spacing:.07em;font-weight:700">Required Skills</p>
+      ${o.description?`<p class="text-sm text-ink2 leading-loose mb-2">${o.description.slice(0,130)}${o.description.length>130?'…':''}</p>`:''}
+      <p class="text-xs text-muted mb-2 text-uppercase">Required Skills</p>
       <div class="tags mb-2">${tags}${extra}${!o.required_skills?'<span class="text-xs text-muted">None</span>':''}</div>
-      ${o.contact_person||o.phone?`<div class="divider"></div><p class="text-xs text-muted">📞 ${o.contact_person||''}${o.phone?' · '+o.phone:''}</p>`:''}
+      ${o.contact_person||o.phone?`<div class="divider"></div><p class="text-xs text-muted"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="vertical-align:middle; margin-right:0.25rem;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.86 19.86 0 0 1 3.09 5.18 2 2 0 0 1 5 3h3a2 2 0 0 1 2 1.72 12.79 12.79 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L9.91 11.09a16 16 0 0 0 6 6l1.46-1.46a2 2 0 0 1 2.11-.45 12.79 12.79 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>${o.contact_person||''}${o.phone?' · '+o.phone:''}</p>`:''}
     </div>`;
   }).join('');
 
   el.innerHTML = `
     <div class="page-header">
       <div class="page-header-left"><h1>Registered Organizations</h1><p>${orgs.length} organization(s) found</p></div>
-      <div class="table-search-wrap" style="background:var(--ink);border-radius:8px;padding:2px 0">
-        <span class="table-search-icon" style="color:rgba(255,255,255,.4)">🔍</span>
-        <input id="srch" class="table-search" placeholder="Search name, industry, skills…" oninput="filter()" style="width:220px">
+      <div class="table-search-wrap search-panel">
+        <span class="table-search-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <input id="srch" class="table-search w-220" placeholder="Search name, industry, skills…" value="${q}" oninput="filter()">
       </div>
     </div>
-    ${orgs.length?`<div class="card-grid">${cards}</div>`:`<div class="empty"><div class="empty-icon">🏢</div><h3>No organizations found</h3><p>Try a different search term.</p></div>`}`;
+    ${orgs.length?`<div class="card-grid">${cards}</div>`:`<div class="empty"><span class="icon-wrap" style="display:flex;align-items:center;justify-content:center;opacity:0.4;margin-bottom:0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18V7H3z"/><path d="M7 21V11"/><path d="M12 21V11"/><path d="M17 21V11"/></svg></span><h3>No organizations found</h3><p>Try a different search term.</p></div>`}`;
 }
 </script>
 </body>

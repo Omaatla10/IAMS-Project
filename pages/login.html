@@ -19,19 +19,20 @@
 <div class="auth-page">
   <div class="auth-left">
     <div class="auth-left-content">
-      <p style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.4);margin-bottom:1.5rem">University of Botswana · IAMS</p>
+      <div class="auth-hero"><img src="../images/UB_logo.png" alt="University of Botswana logo"></div>
+      <p class="auth-brand-note">University of Botswana · IAMS</p>
       <h2>Welcome back to<br><em>the platform</em></h2>
       <p>Sign in to manage your industrial attachment — whether you're a student, organization, or coordinator.</p>
       <div class="auth-perk">
-        <div class="auth-perk-icon">🔵</div>
+        <span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></span>
         <div><h4>Smart Matching</h4><p>Students matched to organizations by skills, preferences and GPA automatically.</p></div>
       </div>
       <div class="auth-perk">
-        <div class="auth-perk-icon">🔵</div>
+        <span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
         <div><h4>Live Status</h4><p>See your placement the moment the coordinator confirms it.</p></div>
       </div>
       <div class="auth-perk">
-        <div class="auth-perk-icon">🔵</div>
+        <span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></span>
         <div><h4>Role-based Access</h4><p>Each user sees only what is relevant to their role.</p></div>
       </div>
     </div>
@@ -41,18 +42,20 @@
     <div class="auth-form-box">
       <h2>Sign in</h2>
       <p class="auth-sub">Enter your registered credentials below.</p>
-      <div id="alertBox"></div>
+      <div id="alertBox" class="auth-alert" role="alert" aria-live="polite"></div>
 
-      <div class="form-group">
-        <label class="form-label">Email Address</label>
-        <input type="email" id="email" class="form-control" placeholder="you@example.com" autocomplete="email">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="password" id="password" class="form-control" placeholder="Your password">
-      </div>
-
-      <button class="btn btn-primary btn-full btn-lg" onclick="doLogin()" style="margin-top:.25rem">Sign In →</button>
+      <form id="loginForm" autocomplete="on">
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input type="email" id="email" class="form-control" placeholder="you@example.com" autocomplete="username" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" class="form-control" placeholder="Your password" autocomplete="current-password" required>
+        </div>
+        <div class="auth-btn-wrap"><button type="submit" class="btn btn-primary btn-full btn-lg">Sign In</button></div>
+        <div class="auth-action-row"><a href="forgot-password.html">Forgot password?</a></div>
+      </form>
 
     
 
@@ -69,8 +72,8 @@ function fill(e, p) { document.getElementById('email').value=e; document.getElem
 async function doLogin() {
   const email = document.getElementById('email').value.trim().toLowerCase();
   const pw    = document.getElementById('password').value;
-  if (!email||!pw) { showAlert('alertBox','Please fill in both fields.','error'); return; }
-  const btn = document.querySelector('button[onclick="doLogin()"]');
+  if (!email || !pw) { showAlert('alertBox','Please fill in both fields.','error'); return; }
+  const btn = document.querySelector('#loginForm button[type="submit"]');
   if (btn) { btn.textContent='Signing in…'; btn.disabled=true; }
   try {
     await loginUser(email, pw);
@@ -81,8 +84,21 @@ async function doLogin() {
   }
 }
 
-document.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
-document.addEventListener('DOMContentLoaded', ()=>{ if(Auth.current()) window.location.href='dashboard.html'; });
+document.addEventListener('DOMContentLoaded', async () => {
+  const user = Auth.current();
+  if (user) {
+    const { data, error } = await _sb.auth.getSession();
+    if (data?.session && !error) {
+      window.location.href='dashboard.html';
+      return;
+    }
+    localStorage.removeItem('iams_user');
+  }
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    await doLogin();
+  });
+});
 </script>
 </body>
 </html>

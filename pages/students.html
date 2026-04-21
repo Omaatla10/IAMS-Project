@@ -12,35 +12,36 @@
 <script src="../js/sidebar.js"></script>
 <script>
 let allStudents=[], allPlacements=[], allOrgs=[];
+let currentSearch = '';
 
 document.addEventListener('DOMContentLoaded', async () => {
   const u = initAppShell('Students');
   if (!u) return;
   Auth.require('coordinator');
   [allStudents, allPlacements, allOrgs] = await Promise.all([getStudents(), getPlacements(), getOrganizations()]);
-  render(allStudents);
+  render(allStudents, currentSearch);
 });
 
 function filter() {
-  const q = document.getElementById('srch').value.toLowerCase();
-  render(q ? allStudents.filter(s=>[s.full_name,s.student_id,s.department,s.skills,s.preferences].join(' ').toLowerCase().includes(q)) : allStudents);
+  currentSearch = document.getElementById('srch').value.toLowerCase();
+  render(currentSearch ? allStudents.filter(s=>[s.full_name,s.student_id,s.department,s.skills,s.preferences].join(' ').toLowerCase().includes(currentSearch)) : allStudents, currentSearch);
 }
 
-function render(students) {
+function render(students, q = '') {
   const el = document.getElementById('pageContent');
   const rows = students.map(s=>{
-    const p = allPlacements.find(x=>x.studentId===s.id);
-    const o = p ? allOrgs.find(x=>x.id===p.orgId) : null;
+    const p = allPlacements.find(x=>x.student_id===s.id);
+    const o = p ? allOrgs.find(x=>x.id===p.org_id) : null;
     const init = (s.full_name||'S')[0].toUpperCase();
     const tags = split(s.skills).slice(0,4).map(sk=>`<span class="tag">${sk}</span>`).join('');
     const extra = split(s.skills).length>4 ? `<span class="tag">+${split(s.skills).length-4}</span>` : '';
     return `<tr>
       <td><div class="d-flex align-center gap-2"><div class="av">${init}</div><strong>${s.full_name||'—'}</strong></div></td>
-      <td><code style="font-size:.75rem;color:var(--muted);background:var(--cream2);padding:2px 7px;border-radius:4px">${s.student_id}</code></td>
+      <td><code class="code-badge">${s.student_id}</code></td>
       <td>${s.department||'—'}</td>
-      <td><strong style="color:var(--green)">${s.gpa||'—'}</strong></td>
+      <td><strong class="text-green">${s.gpa||'—'}</strong></td>
       <td><div class="tags">${tags}${extra}${!s.skills?'<span class="text-muted text-xs">None</span>':''}</div></td>
-      <td>${p&&o?`<span class="badge badge-green">✓ ${o.orgName}</span>`:'<span class="badge badge-amber">⏳ Unmatched</span>'}</td>
+      <td>${p&&o?`<span class="badge badge-green">Assigned to ${o.org_name}</span>`:'<span class="badge badge-amber">Unmatched</span>'}</td>
     </tr>`;
   }).join('');
 
@@ -52,13 +53,13 @@ function render(students) {
       <div class="table-header">
         <div class="table-header-title">All Students</div>
         <div class="table-search-wrap">
-          <span class="table-search-icon">🔍</span>
-          <input id="srch" class="table-search" placeholder="Search name, ID, skills…" oninput="filter()">
+          <span class="table-search-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          <input id="srch" class="table-search" placeholder="Search name, ID, skills…" value="${q}" oninput="filter()">
         </div>
       </div>
       <table>
         <thead><tr><th>Student</th><th>ID</th><th>Department</th><th>GPA</th><th>Skills</th><th>Placement</th></tr></thead>
-        <tbody>${rows||`<tr><td colspan="6"><div class="empty"><div class="empty-icon">🎓</div><h3>No students found</h3></div></td></tr>`}</tbody>
+        <tbody>${rows||`<tr><td colspan="6"><div class="empty"><span class="icon-wrap" style="display:flex;align-items:center;justify-content:center;opacity:0.4;margin-bottom:0.5rem;"><svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span><h3>No students found</h3></div></td></tr>`}</tbody>
       </table>
     </div>`;
 }
