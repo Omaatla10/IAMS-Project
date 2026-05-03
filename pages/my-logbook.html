@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>My Logbook — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+let currentUser, student, existingLogs = [];
+let pendingPdfFile = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  currentUser = initAppShell('My Logbook');
+  if (!currentUser) return;
+  student = await getStudentByUserId(currentUser.id);
+  if (!student) {
+    document.getElementById('pageContent').innerHTML = `<div class="empty"><h3>Profile incomplete</h3><p><a href="profile.html" class="text-blue">Complete your profile first →</a></p></div>`;
+    return;
+  }
+  existingLogs = await getLogbooks(student.id);
+  renderPage();
+});
+
+function renderPage() {
+  const el = document.getElementById('pageContent');
+  const nextWeek = existingLogs.length > 0 ? Math.max(...existingLogs.map(l => l.week_number)) + 1 : 1;
+
+  const logRows = [...existingLogs].reverse().map(l => `
+    <tr>
+      <td><span class="badge badge-blue">Week ${l.week_number}</span></td>
+      <td class="text-xs text-muted">${fmtDate(l.created_at)}</td>
+      <td style="max-width:220px"><p class="text-sm" style="line-height:1.5;white-space:pre-wrap">${esc((l.activities||'').slice(0,90))}${(l.activities||'').length>90?'…':''}</p></td>
+      <td>
+        ${l.pdf_url
+          ? `<a href="${l.pdf_url}" target="_blank" class="btn btn-outline btn-sm" style="font-size:.75rem">📄 View PDF</a>`
+          : '<span class="text-xs text-muted">No PDF</span>'}
+      </td>
+      <td><span class="badge ${l.status==='reviewed'?'badge-green':'badge-amber'}">${l.status||'submitted'}</span></td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+    <div class="page-header">
+      <div class="page-header-left">
+        <h1>My Weekly Logbook</h1>
+        <p>${existingLogs.length} entr${existingLogs.length===1?'y':'ies'} submitted</p>
+      </div>
+    </div>
+    <div id="alertBox"></div>
+    <div class="grid-two">
+
+      <!-- ── Submit form ── -->
+      <div class="card">
+        <h3 style="margin-bottom:1rem">Submit Week ${nextWeek}</h3>
+
+        <div class="form-group">
+          <label class="form-label">Week Number</label>
+          <input type="number" id="f_week" class="form-control" value="${nextWeek}" min="1" max="52">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Activities Performed <span class="text-muted text-xs">(required)</span></label>
+          <textarea id="f_activities" class="form-control" rows="4" placeholder="Describe what you did this week during your attachment…"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Challenges Faced</label>
+          <textarea id="f_challenges" class="form-control" rows="3" placeholder="Any difficulties or obstacles encountered…"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Skills Learned</label>
+          <input id="f_skills_learned" class="form-control" placeholder="e.g. SQL queries, debugging, Git, teamwork…">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Supervisor Comments <span class="text-muted text-xs">(optional)</span></label>
+          <textarea id="f_supervisor_comments" class="form-control" rows="2" placeholder="Any comments from your industrial supervisor…"></textarea>
+        </div>
+
+        <!-- PDF Upload -->
+        <div class="form-group">
+          <label class="form-label">Upload Logbook PDF <span class="text-muted text-xs">(optional, max 5 MB)</span></label>
+          <div id="pdfDropZone" style="border:2px dashed var(--border);border-radius:10px;padding:1.25rem;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--cream2,rgba(0,0,0,.03))"
+               onclick="document.getElementById('f_pdf').click()"
+               ondragover="event.preventDefault();this.style.borderColor='var(--blue)'"
+               ondragleave="this.style.borderColor='var(--border)'"
+               ondrop="handleDrop(event)">
+            <div id="pdfDropLabel" style="pointer-events:none">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4;margin-bottom:.5rem"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              <p class="text-sm text-muted">Click or drag & drop a PDF here</p>
+              <p class="text-xs text-muted">PDF files only · Max 5 MB</p>
+            </div>
+          </div>
+          <input type="file" id="f_pdf" accept=".pdf,application/pdf" style="display:none" onchange="handlePdfSelect(event)">
+        </div>
+
+        <button class="btn btn-primary" id="submitBtn" onclick="submitLog()">📓 Submit Logbook Entry</button>
+      </div>
+
+      <!-- ── History ── -->
+      <div class="card">
+        <h3 style="margin-bottom:1rem">Submission History</h3>
+        ${existingLogs.length
+          ? `<div class="table-wrap"><table>
+              <thead><tr><th>Week</th><th>Date</th><th>Activities</th><th>PDF</th><th>Status</th></tr></thead>
+              <tbody>${logRows}</tbody>
+             </table></div>`
+          : `<div class="empty empty-padded"><p>No entries yet. Submit your first weekly logbook entry.</p></div>`}
+      </div>
+    </div>`;
+}
+
+// ── PDF file handling ──────────────────────────────────────────
+function handlePdfSelect(event) {
+  const file = event.target.files?.[0];
+  if (file) setPdfFile(file);
+}
+
+function handleDrop(event) {
+  event.preventDefault();
+  document.getElementById('pdfDropZone').style.borderColor = 'var(--border)';
+  const file = event.dataTransfer.files?.[0];
+  if (file && file.type === 'application/pdf') {
+    setPdfFile(file);
+  } else {
+    showAlert('alertBox','Please drop a PDF file only.','error');
+  }
+}
+
+function setPdfFile(file) {
+  if (file.size > 5 * 1024 * 1024) { showAlert('alertBox','PDF file must be under 5 MB.','error'); return; }
+  if (file.type !== 'application/pdf') { showAlert('alertBox','Only PDF files are accepted.','error'); return; }
+  pendingPdfFile = file;
+  document.getElementById('pdfDropLabel').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;gap:.75rem">
+      <span style="font-size:1.8rem">📄</span>
+      <div style="text-align:left">
+        <p class="text-sm" style="font-weight:600;color:var(--blue)">${esc(file.name)}</p>
+        <p class="text-xs text-muted">${(file.size/1024).toFixed(1)} KB · PDF</p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" style="font-size:.75rem" onclick="clearPdf(event)">✕ Remove</button>
+    </div>`;
+  document.getElementById('pdfDropZone').style.borderColor = 'var(--blue)';
+}
+
+function clearPdf(event) {
+  event.stopPropagation();
+  pendingPdfFile = null;
+  document.getElementById('f_pdf').value = '';
+  document.getElementById('pdfDropZone').style.borderColor = 'var(--border)';
+  document.getElementById('pdfDropLabel').innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="opacity:.4;margin-bottom:.5rem"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+    <p class="text-sm text-muted">Click or drag & drop a PDF here</p>
+    <p class="text-xs text-muted">PDF files only · Max 5 MB</p>`;
+}
+
+// ── Upload PDF to Supabase Storage ────────────────────────────
+async function uploadLogbookPdf(studentId, weekNumber, file) {
+  const path = `logbooks/${studentId}/week_${weekNumber}_${Date.now()}.pdf`;
+  const { data, error } = await _sb.storage.from('user-assets').upload(path, file, { cacheControl: '3600', upsert: true, contentType: 'application/pdf' });
+  if (error) throw new Error('PDF upload failed: ' + error.message);
+  return _sb.storage.from('user-assets').getPublicUrl(path).data.publicUrl;
+}
+
+// ── Submit logbook entry ──────────────────────────────────────
+async function submitLog() {
+  const week       = parseInt(document.getElementById('f_week')?.value);
+  const activities = document.getElementById('f_activities')?.value.trim();
+  const challenges = document.getElementById('f_challenges')?.value.trim();
+  const skills_learned = document.getElementById('f_skills_learned')?.value.trim();
+  const supervisor_comments = document.getElementById('f_supervisor_comments')?.value.trim();
+
+  if (!week || week < 1) { showAlert('alertBox','Please enter a valid week number.','error'); return; }
+  if (!activities)       { showAlert('alertBox','Please describe your activities for this week.','error'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.textContent = 'Uploading…'; btn.disabled = true;
+
+  try {
+    // Upload PDF if one is attached
+    let pdf_url = null;
+    let pdf_name = null;
+    if (pendingPdfFile) {
+      pdf_url  = await uploadLogbookPdf(student.id, week, pendingPdfFile);
+      pdf_name = pendingPdfFile.name;
+    }
+
+    const payload = { activities, challenges, skills_learned, supervisor_comments, status: 'submitted', pdf_url, pdf_name };
+    const existing = existingLogs.find(l => l.week_number === week);
+
+    if (existing) {
+      if (!confirm(`You already have a logbook for Week ${week}. Update it?`)) { btn.textContent='📓 Submit Logbook Entry'; btn.disabled=false; return; }
+      await updateLogbook(existing.id, payload);
+      showAlert('alertBox',`✓ Week ${week} logbook updated successfully.`,'success');
+    } else {
+      await submitLogbook({ student_id: student.id, week_number: week, ...payload });
+      showAlert('alertBox',`✓ Week ${week} logbook submitted${pdf_url?' with PDF':''}.`,'success');
+      await logActivity('submit_logbook', `Submitted logbook for week ${week}${pdf_url?' (with PDF)':''}`);
+    }
+
+    pendingPdfFile = null;
+    existingLogs = await getLogbooks(student.id);
+    renderPage();
+  } catch(err) {
+    showAlert('alertBox','Error: ' + err.message,'error');
+  }
+  btn.textContent = '📓 Submit Logbook Entry'; btn.disabled = false;
+}
+</script>
+</body>
+</html>

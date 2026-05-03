@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Logbooks — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+let allLogs=[], allStudents=[], allOrgs=[], allPlacements=[];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const u = initAppShell('Logbooks');
+  if (!u) return;
+  Auth.require('coordinator');
+
+  document.getElementById('pageContent').innerHTML = `
+    <div class="page-header d-flex align-center justify-between flex-wrap gap-2">
+      <div><h1>Student Logbooks</h1><p id="logCount">Loading…</p></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
+      <div class="table-search-wrap" style="flex:1;max-width:280px">
+        <span class="table-search-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+        <input id="srch" class="table-search" placeholder="Search student, activities…" oninput="filterLogs()">
+      </div>
+      <select id="fStudent" class="form-control" style="max-width:200px" onchange="filterLogs()">
+        <option value="">All Students</option>
+      </select>
+      <select id="fStatus" class="form-control" style="max-width:160px" onchange="filterLogs()">
+        <option value="">All Status</option>
+        <option value="submitted">Submitted</option>
+        <option value="reviewed">Reviewed</option>
+      </select>
+    </div>
+    <div id="logTable"></div>`;
+
+  [allLogs, allStudents, allOrgs, allPlacements] = await Promise.all([getAllLogbooks(), getStudents(), getOrganizations(), getPlacements()]);
+
+  const fStudent = document.getElementById('fStudent');
+  allStudents.forEach(s => { const o=document.createElement('option'); o.value=s.id; o.textContent=s.full_name||s.student_id; fStudent.appendChild(o); });
+
+  renderLogs(allLogs);
+});
+
+function filterLogs() {
+  const q      = document.getElementById('srch')?.value.toLowerCase() || '';
+  const sid    = document.getElementById('fStudent')?.value || '';
+  const status = document.getElementById('fStatus')?.value || '';
+  let res = allLogs;
+  if (sid)    res = res.filter(l => l.student_id === sid);
+  if (status) res = res.filter(l => (l.status||'submitted') === status);
+  if (q)      res = res.filter(l => {
+    const s = allStudents.find(x=>x.id===l.student_id);
+    return [s?.full_name, s?.student_id, l.activities, l.skills_learned, l.pdf_name].join(' ').toLowerCase().includes(q);
+  });
+  renderLogs(res);
+}
+
+function renderLogs(logs) {
+  const submitted = logs.filter(l=>(l.status||'submitted')==='submitted').length;
+  const reviewed  = logs.filter(l=>l.status==='reviewed').length;
+  document.getElementById('logCount').textContent = `${logs.length} entr${logs.length===1?'y':'ies'} · ${submitted} pending review · ${reviewed} reviewed`;
+
+  if (!logs.length) {
+    document.getElementById('logTable').innerHTML = `<div class="empty"><h3>No logbook entries found</h3><p>Students have not submitted logbooks yet, or no results match your filter.</p></div>`;
+    return;
+  }
+
+  const rows = logs.map(l => {
+    const s = allStudents.find(x=>x.id===l.student_id);
+    const p = allPlacements.find(x=>x.student_id===l.student_id);
+    const o = p ? allOrgs.find(x=>x.id===p.org_id) : null;
+    const isReviewed = l.status === 'reviewed';
+    return `<tr>
+      <td>
+        <div class="d-flex align-center gap-2">
+          <div class="av">${(s?.full_name||'S')[0].toUpperCase()}</div>
+          <div>
+            <strong>${esc(s?.full_name||'Unknown')}</strong>
+            <br><span class="text-xs text-muted">${esc(s?.student_id||'')}</span>
+          </div>
+        </div>
+      </td>
+      <td><span class="badge badge-blue">Week ${l.week_number}</span></td>
+      <td class="text-sm text-muted">${esc(o?.org_name||'Unplaced')}</td>
+      <td style="max-width:200px"><p class="text-sm" style="white-space:pre-wrap;line-height:1.5">${esc((l.activities||'').slice(0,80))}${(l.activities||'').length>80?'…':''}</p></td>
+      <td>
+        ${l.pdf_url
+          ? `<a href="${l.pdf_url}" target="_blank" class="btn btn-blue btn-sm" style="font-size:.75rem;white-space:nowrap">📄 View PDF</a>`
+          : '<span class="text-xs text-muted">—</span>'}
+      </td>
+      <td class="text-xs text-muted">${fmtDate(l.created_at)}</td>
+      <td>
+        <span class="badge ${isReviewed?'badge-green':'badge-amber'}">${isReviewed?'Reviewed':'Pending'}</span>
+      </td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="viewEntry('${l.id}')">Full View</button>
+        ${!isReviewed?`<button class="btn btn-success btn-sm" onclick="markReviewed('${l.id}')">✓ Review</button>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('logTable').innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Student</th><th>Week</th><th>Organization</th><th>Activities</th><th>PDF</th><th>Submitted</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+async function markReviewed(id) {
+  await _q(() => _sb.from('logbooks').update({ status: 'reviewed' }).eq('id', id));
+  allLogs = allLogs.map(l => l.id===id ? {...l, status:'reviewed'} : l);
+  filterLogs();
+  await logActivity('review_logbook', `Marked logbook ${id} as reviewed`);
+}
+
+function viewEntry(id) {
+  const l = allLogs.find(x=>x.id===id); if (!l) return;
+  const s = allStudents.find(x=>x.id===l.student_id);
+  const modal = document.createElement('div');
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML = `
+    <div style="background:var(--surface,#fff);border-radius:16px;padding:2rem;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.2)">
+      <div class="d-flex align-center justify-between mb-3">
+        <h3 style="margin:0">${esc(s?.full_name||'Student')} — Week ${l.week_number}</h3>
+        <button class="btn btn-ghost btn-sm" onclick="this.closest('[style*=fixed]').remove()">✕</button>
+      </div>
+      <p class="text-xs text-muted mb-3">Submitted: ${fmtDate(l.created_at)} · Status: <strong>${l.status||'submitted'}</strong></p>
+
+      ${l.pdf_url ? `
+      <div style="margin-bottom:1rem;padding:.85rem 1rem;background:rgba(37,99,235,.06);border-radius:10px;border:1px solid rgba(37,99,235,.2);display:flex;align-items:center;gap:.75rem">
+        <span style="font-size:1.8rem">📄</span>
+        <div style="flex:1">
+          <p style="font-weight:600;font-size:.88rem">${esc(l.pdf_name||'Logbook PDF')}</p>
+          <p class="text-xs text-muted">Submitted PDF document</p>
+        </div>
+        <a href="${l.pdf_url}" target="_blank" class="btn btn-blue btn-sm">Open PDF ↗</a>
+      </div>` : ''}
+
+      <div class="form-group"><label class="form-label">Activities Performed</label>
+        <div style="background:var(--cream2,rgba(0,0,0,.04));padding:.85rem;border-radius:8px;font-size:.85rem;line-height:1.7;white-space:pre-wrap">${esc(l.activities||'—')}</div>
+      </div>
+      <div class="form-group"><label class="form-label">Challenges Faced</label>
+        <div style="background:var(--cream2,rgba(0,0,0,.04));padding:.85rem;border-radius:8px;font-size:.85rem;line-height:1.7;white-space:pre-wrap">${esc(l.challenges||'—')}</div>
+      </div>
+      <div class="form-group"><label class="form-label">Skills Learned</label>
+        <div style="background:var(--cream2,rgba(0,0,0,.04));padding:.85rem;border-radius:8px;font-size:.85rem">${esc(l.skills_learned||'—')}</div>
+      </div>
+      ${l.supervisor_comments?`<div class="form-group"><label class="form-label">Supervisor Comments</label><div style="background:var(--cream2,rgba(0,0,0,.04));padding:.85rem;border-radius:8px;font-size:.85rem">${esc(l.supervisor_comments)}</div></div>`:''}
+      <div class="d-flex gap-2 mt-3">
+        <button class="btn btn-ghost btn-sm" onclick="this.closest('[style*=fixed]').remove()">Close</button>
+        ${l.status!=='reviewed'?`<button class="btn btn-success btn-sm" onclick="markReviewed('${l.id}');this.closest('[style*=fixed]').remove()">✓ Mark as Reviewed</button>`:''}
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target===modal) modal.remove(); });
+}
+</script>
+</body>
+</html>
