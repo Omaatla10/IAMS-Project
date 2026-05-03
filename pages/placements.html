@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Placements — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+let currentUser;
+document.addEventListener('DOMContentLoaded', async () => {
+  currentUser = initAppShell('Placements');
+  if (!currentUser) return;
+  await renderPlacements();
+});
+
+async function renderPlacements() {
+  // Fetch all data in parallel
+  const [placements, students, orgs] = await Promise.all([
+    getPlacements(),
+    getStudents(),
+    getAllOrganizations()
+  ]);
+
+  const el = document.getElementById('pageContent');
+  const isCoord = currentUser?.role === 'coordinator';
+
+  const confirmed = placements.filter(p => p.status === 'confirmed').length;
+  const pending   = placements.filter(p => p.status === 'pending').length;
+  const rejected  = placements.filter(p => p.status === 'rejected').length;
+  const revoked   = placements.filter(p => p.status === 'revoked').length;
+
+  const rows = placements.map(p => {
+    const s = students.find(x => x.id === p.student_id);
+    const o = orgs.find(x => x.id === p.org_id);
+    let actions = '';
+    if (isCoord) {
+      if (p.status === 'pending') {
+        actions = `
+          <button class="btn btn-success btn-sm" onclick="doConfirm('${p.id}')">✓ Confirm</button>
+          <button class="btn btn-danger btn-sm" onclick="openModal('reject','${p.id}')">✗ Reject</button>`;
+      } else if (p.status === 'confirmed') {
+        actions = `
+          <button class="btn btn-outline btn-sm" onclick="openModal('revoke','${p.id}')">🔄 Revoke</button>
+          <button class="btn btn-blue btn-sm" onclick="doSendToOrg('${p.id}')" title="Send placement notification to organisation"
+            style="padding:.3rem .7rem;font-size:.78rem">
+            ${p.org_notified ? '📢 Re-notify Org' : '📢 Notify Org'}
+          </button>`;
+      } else {
+        // rejected or revoked
+        actions = `<button class="btn btn-ghost btn-sm" onclick="doConfirm('${p.id}')">↩ Restore</button>`;
+      }
+    }
+
+    const statusClass = p.status === 'confirmed' ? 'badge-green'
+                      : p.status === 'rejected'  ? 'badge-red'
+                      : p.status === 'revoked'   ? 'badge-red'
+                      : 'badge-amber';
+
+    return `<tr>
+      <td>
+        <div class="d-flex align-center gap-2">
+          <div class="av">${(s?.full_name || 'S')[0].toUpperCase()}</div>
+          <div>
+            <strong>${esc(s?.full_name || 'Unknown')}</strong>
+            <br><span class="text-xs text-muted">${esc(s?.email || '')}</span>
+          </div>
+        </div>
+      </td>
+      <td><code class="code-badge">${esc(s?.student_id || '—')}</code></td>
+      <td>
+        <span class="text-strong">${esc(o?.org_name || 'Unknown')}</span>
+        ${p.status === 'confirmed' && p.org_notified
+          ? `<br><span class="text-xs text-muted" style="color:var(--green,#16a34a)">✓ Org notified</span>`
+          : ''}
+      </td>
+      <td class="text-sm text-muted">${esc(o?.industry || '—')}</td>
+      <td>
+        <div class="score-wrap">
+          <div class="score-bar"><div class="score-fill" style="width:${p.score}%"></div></div>
+          <span class="score-num">${p.score}%</span>
+        </div>
+      </td>
+      <td>
+        <span class="badge ${statusClass}">${p.status}</span>
+        ${p.rejection_reason ? `<br><span class="text-xs text-muted">${esc(p.rejection_reason)}</span>` : ''}
+      </td>
+      ${isCoord ? `<td style="white-space:nowrap;min-width:200px">${actions}</td>` : ''}
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="page-header d-flex align-center justify-between flex-wrap gap-2">
+      <div>
+        <h1>Placement Results</h1>
+        <p>${placements.length} total · ${confirmed} confirmed · ${pending} pending · ${rejected + revoked} rejected/revoked</p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        ${isCoord ? '<button class="btn btn-outline btn-sm" onclick="exportPlacementsCSV()">⬇ Export CSV</button>' : ''}
+        <a href="match.html" class="btn btn-outline btn-sm">← Matching</a>
+      </div>
+    </div>
+    <div id="alertBox"></div>
+
+    <!-- Reject / Revoke modal -->
+    <div id="actionModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center;padding:1rem">
+      <div style="background:var(--surface,#fff);border-radius:16px;padding:2rem;max-width:440px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.2)">
+        <h3 id="modalTitle" style="margin-bottom:.5rem">Reject Placement</h3>
+        <p class="text-sm text-muted mb-3" id="modalSubtitle">Provide an optional reason. The student will be notified automatically.</p>
+        <textarea id="actionReason" class="form-control" rows="3" placeholder="e.g. Skills mismatch, position no longer available…"></textarea>
+        <div class="d-flex gap-2 mt-3" style="justify-content:flex-end">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button id="modalConfirmBtn" class="btn btn-danger" onclick="submitAction()">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    ${placements.length ? `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Student</th>
+            <th>ID</th>
+            <th>Organisation</th>
+            <th>Industry</th>
+            <th>Score</th>
+            <th>Status</th>
+            ${isCoord ? '<th>Actions</th>' : ''}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`
+    : `<div class="empty">
+        <h3>No placements yet</h3>
+        <p>Run the matching algorithm first.</p>
+        ${isCoord ? '<a href="match.html" class="btn btn-blue mt-3">🎯 Run Matching →</a>' : ''}
+      </div>`}`;
+}
+
+// ── Confirm ───────────────────────────────────────
+async function doConfirm(id) {
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    await confirmPlacement(id);
+    showAlert('alertBox', '✓ Placement confirmed. Student and organisation notified.', 'success');
+  } catch(e) {
+    showAlert('alertBox', 'Error: ' + e.message, 'error');
+  }
+  await renderPlacements();
+}
+
+// ── Send placement notification to org ───────────
+async function doSendToOrg(id) {
+  const btn = event?.target;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const ok = await sendPlacementNotificationToOrg(id);
+    if (ok) {
+      showAlert('alertBox', '📢 Organisation notified successfully.', 'success');
+    } else {
+      showAlert('alertBox', 'Could not send notification — placement must be confirmed and the organisation must have a user account.', 'error');
+    }
+  } catch(e) {
+    showAlert('alertBox', 'Error: ' + e.message, 'error');
+  }
+  await renderPlacements();
+}
+
+// ── Modal (reject / revoke) ───────────────────────
+let _modalId = null;
+let _modalMode = null; // 'reject' | 'revoke'
+
+function openModal(mode, id) {
+  _modalId   = id;
+  _modalMode = mode;
+  const isRevoke = mode === 'revoke';
+  document.getElementById('modalTitle').textContent    = isRevoke ? 'Revoke Confirmed Placement' : 'Reject Placement';
+  document.getElementById('modalSubtitle').textContent = isRevoke
+    ? 'Revoking will remove the confirmed status. Both the student and the organisation will be notified.'
+    : 'Provide an optional reason. The student will be notified automatically.';
+  document.getElementById('modalConfirmBtn').textContent  = isRevoke ? 'Revoke Placement' : 'Confirm Rejection';
+  document.getElementById('modalConfirmBtn').className    = isRevoke ? 'btn btn-warning' : 'btn btn-danger';
+  document.getElementById('actionReason').value           = '';
+  document.getElementById('actionModal').style.display    = 'flex';
+  document.getElementById('actionReason').focus();
+}
+
+function closeModal() {
+  document.getElementById('actionModal').style.display = 'none';
+  _modalId   = null;
+  _modalMode = null;
+}
+
+async function submitAction() {
+  if (!_modalId || !_modalMode) return;
+  const reason  = document.getElementById('actionReason').value.trim();
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Processing…';
+
+  try {
+    if (_modalMode === 'revoke') {
+      await revokePlacement(_modalId, reason);
+      showAlert('alertBox', '🔄 Placement revoked. Student and organisation notified.', 'info');
+    } else {
+      await rejectPlacement(_modalId, reason);
+      showAlert('alertBox', 'Placement rejected. Student notified.', 'info');
+    }
+    closeModal();
+    await renderPlacements();
+  } catch(e) {
+    showAlert('alertBox', 'Error: ' + e.message, 'error');
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = _modalMode === 'revoke' ? 'Revoke Placement' : 'Confirm Rejection';
+  }
+}
+
+// Close modal on backdrop click
+document.addEventListener('click', e => {
+  if (e.target.id === 'actionModal') closeModal();
+});
+</script>
+</body>
+</html>

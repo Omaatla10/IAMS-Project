@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Notifications - IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+let currentUser, notifs = [], reminders = [];
+let calendarMonth = new Date();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  currentUser = initAppShell('Notifications');
+  if (!currentUser) return;
+  await loadPage();
+});
+
+async function loadPage() {
+  const tasks = [getNotifications(currentUser.id)];
+  if (currentUser.role === 'coordinator' || currentUser.role === 'student') tasks.push(getDueDateReminders(20));
+  const rows = await Promise.all(tasks);
+  notifs = rows[0] || [];
+  reminders = rows[1] || [];
+  render();
+  updateNotifBadge();
+}
+
+async function markOne(id) {
+  await markNotifRead(id);
+  notifs = notifs.map(n => n.id===id ? {...n, is_read:true} : n);
+  render(); updateNotifBadge();
+}
+
+async function markAll() {
+  await markAllNotifsRead(currentUser.id);
+  await loadPage();
+}
+
+function shiftCalendarMonth(delta) {
+  calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + delta, 1);
+  render();
+}
+
+async function submitReminder(e) {
+  e.preventDefault();
+  const btn = document.getElementById('reminderBtn');
+  const title = document.getElementById('rTitle').value.trim();
+  const due_date = document.getElementById('rDue').value;
+  const message = document.getElementById('rMessage').value.trim();
+  if (!title || !due_date) {
+    showAlert('alertBox', 'Please enter a title and due date.', 'error');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  try {
+    const result = await createAndSendDueDateReminder({
+      title,
+      due_date,
+      message,
+      created_by: currentUser.id
+    });
+    if (result.sent <= 0) {
+      showAlert('alertBox', 'No student notifications were sent. Check that students exist and that coordinator notification permissions are enabled in Supabase.', 'error');
+      return;
+    }
+    showAlert('alertBox', `Reminder sent to ${result.sent} student(s).${result.saved ? '' : ' Run the updated schema to save it in the calendar table.'}`, 'success');
+    e.target.reset();
+    await loadPage();
+    if (!result.saved) {
+      reminders = [{ title, due_date, message, created_at: new Date().toISOString() }, ...reminders];
+      render();
+    }
+  } catch (err) {
+    showAlert('alertBox', err.message || 'Could not send reminder.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send Reminder';
+  }
+}
+
+function reminderForm() {
+  if (currentUser.role !== 'coordinator') return '';
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = reminders.length ? reminders.map(r => {
+    const badge = daysUntil(r.due_date) < 0 ? 'badge-red' : daysUntil(r.due_date) <= 3 ? 'badge-amber' : 'badge-blue';
+    return `
+      <div class="mini-card">
+        <div class="d-flex align-center justify-between gap-2 flex-wrap">
+          <div>
+            <p class="text-strong">${esc(r.title)}</p>
+            <p class="text-xs text-muted">${esc(r.message || 'No extra message')}</p>
+          </div>
+          <span class="badge ${badge}">${dueDateLabel(r.due_date)}</span>
+        </div>
+        <p class="text-xs text-muted mt-1">Due ${fmtDate(r.due_date)} · Created ${relTime(r.created_at)}</p>
+      </div>`;
+  }).join('') : '<div class="empty empty-padded"><p>No due date reminders have been sent yet.</p></div>';
+
+  return `
+    <div id="alertBox"></div>
+    <div class="reminder-layout mb-3">
+      <div class="reminder-main">
+        <div class="card">
+          <h3>Send Due Date Reminder</h3>
+          <form onsubmit="submitReminder(event)">
+            <div class="form-group">
+              <label class="form-label" for="rTitle">Reminder title</label>
+              <input id="rTitle" class="form-control" placeholder="e.g. Week 4 logbook due" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rDue">Due date</label>
+              <input id="rDue" type="date" min="${today}" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rMessage">Message</label>
+              <textarea id="rMessage" class="form-control" rows="3" placeholder="Add the submission instructions students should see."></textarea>
+            </div>
+            <button id="reminderBtn" class="btn btn-blue btn-sm" type="submit">Send Reminder</button>
+          </form>
+        </div>
+        <div class="card mt-3">
+          <h3>Recent Due Dates</h3>
+          ${rows}
+        </div>
+      </div>
+      ${renderDueCalendar()}
+    </div>`;
+}
+
+function getCalendarItems() {
+  if (currentUser.role === 'coordinator' || currentUser.role === 'student') return reminders;
+  return notifs
+    .filter(n => n.due_date)
+    .map(n => ({ title: n.title, message: n.message, due_date: n.due_date, created_at: n.created_at }));
+}
+
+function renderDueCalendar() {
+  const items = getCalendarItems();
+  if (currentUser.role !== 'coordinator' && currentUser.role !== 'student' && !items.length) return '';
+
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  const monthName = calendarMonth.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const byDate = items.reduce((acc, item) => {
+    if (!item.due_date) return acc;
+    (acc[item.due_date] ||= []).push(item);
+    return acc;
+  }, {});
+
+  const cells = [];
+  for (let i = 0; i < firstDay; i++) cells.push('<div class="cal-day cal-muted"></div>');
+  for (let day = 1; day <= daysInMonth; day++) {
+    const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dueItems = byDate[key] || [];
+    const classes = ['cal-day'];
+    if (key === todayKey) classes.push('cal-today');
+    if (dueItems.length) classes.push(daysUntil(key) < 0 ? 'cal-overdue' : 'cal-due');
+    cells.push(`
+      <div class="${classes.join(' ')}" title="${dueItems.map(x => esc(x.title)).join(', ')}">
+        <span>${day}</span>
+        ${dueItems.length ? `<small>${dueItems.length}</small>` : ''}
+      </div>`);
+  }
+
+  const monthItems = items
+    .filter(item => item.due_date && new Date(`${item.due_date}T00:00:00`).getMonth() === month && new Date(`${item.due_date}T00:00:00`).getFullYear() === year)
+    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+  const list = monthItems.length ? monthItems.map(item => `
+    <div class="cal-item">
+      <span class="cal-dot ${daysUntil(item.due_date) < 0 ? 'cal-dot-red' : ''}"></span>
+      <div>
+        <p>${esc(item.title)}</p>
+        <small>${fmtDate(item.due_date)} · ${dueDateLabel(item.due_date)}</small>
+      </div>
+    </div>`).join('') : '<p class="text-xs text-muted">No due dates in this month.</p>';
+
+  return `
+    <aside class="card reminder-calendar">
+      <div class="cal-head">
+        <button class="btn btn-ghost btn-sm" onclick="shiftCalendarMonth(-1)" aria-label="Previous month">&lt;</button>
+        <h3>${monthName}</h3>
+        <button class="btn btn-ghost btn-sm" onclick="shiftCalendarMonth(1)" aria-label="Next month">&gt;</button>
+      </div>
+      <div class="cal-week"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div>
+      <div class="cal-grid">${cells.join('')}</div>
+      <div class="cal-list">
+        <p class="form-label">Highlighted due dates</p>
+        ${list}
+      </div>
+    </aside>`;
+}
+
+function render() {
+  const el = document.getElementById('pageContent');
+  const unread = notifs.filter(n=>!n.is_read).length;
+  const typeIcon = { success:'OK', info:'Info', warning:'Due', error:'!' };
+
+  const items = notifs.map(n => {
+    const dueMeta = n.due_date ? `<span class="badge ${daysUntil(n.due_date) < 0 ? 'badge-red' : daysUntil(n.due_date) <= 3 ? 'badge-amber' : 'badge-blue'}">${dueDateLabel(n.due_date)}</span>` : '';
+    return `
+      <div style="display:flex;align-items:flex-start;gap:1rem;padding:1rem;border-bottom:1px solid var(--border);background:${n.is_read?'transparent':'rgba(37,99,235,.04)'}">
+        <div style="font-size:.72rem;font-weight:700;flex-shrink:0;margin-top:.1rem;min-width:36px;color:var(--blue)">${typeIcon[n.type]||'Note'}</div>
+        <div style="flex:1;min-width:0">
+          <div class="d-flex align-center justify-between gap-2 flex-wrap">
+            <p style="font-weight:600;font-size:.9rem">${esc(n.title)}</p>
+            <div class="d-flex align-center gap-2 flex-wrap">
+              ${dueMeta}
+              <span class="text-xs text-muted">${relTime(n.created_at)}</span>
+              ${!n.is_read?'<span class="badge badge-blue" style="font-size:.58rem">New</span>':''}
+            </div>
+          </div>
+          <p class="text-sm mt-1" style="line-height:1.55">${esc(n.message)}</p>
+        </div>
+        ${!n.is_read?`<button class="btn btn-ghost btn-sm" style="flex-shrink:0;font-size:.75rem" onclick="markOne('${n.id}')">Mark read</button>`:''}
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="page-header d-flex align-center justify-between flex-wrap gap-2">
+      <div><h1>Notifications</h1><p>${notifs.length} total · ${unread} unread</p></div>
+      ${unread>0?`<button class="btn btn-outline btn-sm" onclick="markAll()">Mark all read</button>`:''}
+    </div>
+    ${reminderForm()}
+    ${currentUser.role === 'student' ? `<div class="mb-3">${renderDueCalendar()}</div>` : ''}
+    ${notifs.length
+      ? `<div class="card" style="padding:0;overflow:hidden">${items}</div>`
+      : `<div class="empty"><div style="font-size:3rem;margin-bottom:.5rem">!</div><h3>No notifications yet</h3><p>You will be notified here when your placement is updated or a deadline is approaching.</p></div>`}`;
+}
+</script>
+</body>
+</html>

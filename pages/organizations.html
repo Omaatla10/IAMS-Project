@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Organisations — IAMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/app.js"></script>
+<script src="../js/sidebar.js"></script>
+<script>
+let allOrgs = [], pendingOrgs = [], currentUser;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  currentUser = initAppShell('Organisations');
+  if (!currentUser) return;
+
+  document.getElementById('pageContent').innerHTML = `
+    <div class="page-header d-flex align-center justify-between flex-wrap gap-2">
+      <div><h1>Organisations</h1><p id="orgCount">Loading…</p></div>
+    </div>
+    <div id="alertBox"></div>
+
+    <!-- Pending approvals (coordinator only) -->
+    <div id="pendingSection" style="display:none">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:1rem">
+        <h3 style="margin:0">⏳ Pending Approvals</h3>
+        <span id="pendingBadge" class="badge badge-amber" style="font-size:.75rem"></span>
+      </div>
+      <div id="pendingGrid" class="card-grid"></div>
+      <div style="border-top:1px solid var(--border,#e5e7eb);margin:1.5rem 0 1rem"></div>
+    </div>
+
+    <!-- Reject modal -->
+    <div id="rejectModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;align-items:center;justify-content:center;padding:1rem">
+      <div style="background:var(--surface,#fff);border-radius:16px;padding:2rem;max-width:440px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.2)">
+        <h3 style="margin-bottom:.5rem">Reject Registration</h3>
+        <p class="text-sm text-muted mb-3">Provide an optional reason. The organisation will be notified.</p>
+        <textarea id="rejectReason" class="form-control" rows="3" placeholder="e.g. Duplicate registration, not a recognised organisation…"></textarea>
+        <div class="d-flex gap-2 mt-3" style="justify-content:flex-end">
+          <button class="btn btn-ghost" onclick="closeRejectModal()">Cancel</button>
+          <button class="btn btn-danger" onclick="confirmReject()">Reject Registration</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active orgs directory -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.25rem">
+      <div class="table-search-wrap" style="flex:1;max-width:280px">
+        <span class="table-search-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input id="srch" class="table-search" placeholder="Search name, industry, skills…" oninput="filterOrgs()">
+      </div>
+      <select id="fInd" class="form-control" style="max-width:200px" onchange="filterOrgs()">
+        <option value="">All Industries</option>
+      </select>
+    </div>
+    <div id="orgGrid"></div>`;
+
+  // Load data
+  const tasks = [getOrganizations()];
+  if (currentUser.role === 'coordinator') tasks.push(getPendingOrganizations());
+  const [active, pending] = await Promise.all(tasks);
+  allOrgs     = active  || [];
+  pendingOrgs = pending || [];
+
+  // Industries filter
+  const industries = [...new Set(allOrgs.map(o => o.industry).filter(Boolean))].sort();
+  const fInd = document.getElementById('fInd');
+  industries.forEach(i => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = i;
+    fInd.appendChild(o);
+  });
+
+  // Pending section
+  if (currentUser.role === 'coordinator') renderPendingSection();
+
+  renderOrgCards(allOrgs);
+});
+
+// ── Pending approvals ─────────────────────────────
+function renderPendingSection() {
+  const section = document.getElementById('pendingSection');
+  const grid    = document.getElementById('pendingGrid');
+  const badge   = document.getElementById('pendingBadge');
+
+  if (!pendingOrgs.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  badge.textContent = `${pendingOrgs.length} pending`;
+
+  grid.innerHTML = pendingOrgs.map(o => `
+    <div class="card" style="border:2px solid var(--amber,#f59e0b)">
+      <div class="d-flex align-center justify-between mb-2">
+        <div class="d-flex align-center gap-2">
+          <div class="av av-amber" style="background:#f59e0b">⏳</div>
+          <div>
+            <h3 class="mb-0 text-md">${esc(o.org_name || '(Profile not yet completed)')}</h3>
+            <p class="text-xs text-muted">${esc(o.email || '')} · ${esc(o.industry || 'Industry not set')}</p>
+          </div>
+        </div>
+        <span class="badge badge-amber">Pending</span>
+      </div>
+      ${o.contact_person || o.phone ? `<p class="text-xs text-muted mb-2">📞 ${esc(o.contact_person || '')}${o.phone ? ' · ' + esc(o.phone) : ''}</p>` : ''}
+      ${o.description ? `<p class="text-sm text-ink2 mb-2">${esc(o.description.slice(0,120))}${o.description.length > 120 ? '…' : ''}</p>` : ''}
+      <div class="d-flex gap-2 mt-2">
+        <button class="btn btn-success btn-sm" onclick="doApproveOrg('${o.id}', this)">✓ Approve</button>
+        <button class="btn btn-danger btn-sm"  onclick="openRejectModal('${o.id}')">✗ Reject</button>
+      </div>
+    </div>`
+  ).join('');
+}
+
+let _rejectOrgId = null;
+function openRejectModal(orgId) {
+  _rejectOrgId = orgId;
+  document.getElementById('rejectReason').value = '';
+  document.getElementById('rejectModal').style.display = 'flex';
+  document.getElementById('rejectReason').focus();
+}
+function closeRejectModal() {
+  document.getElementById('rejectModal').style.display = 'none';
+  _rejectOrgId = null;
+}
+async function confirmReject() {
+  if (!_rejectOrgId) return;
+  const reason = document.getElementById('rejectReason').value.trim();
+  try {
+    await rejectOrganizationRegistration(_rejectOrgId, reason);
+    pendingOrgs = pendingOrgs.filter(o => o.id !== _rejectOrgId);
+    closeRejectModal();
+    renderPendingSection();
+    showAlert('alertBox', 'Organisation registration rejected. They have been notified.', 'info');
+  } catch(e) {
+    showAlert('alertBox', 'Error: ' + e.message, 'error');
+  }
+}
+
+async function doApproveOrg(orgId, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    await approveOrganization(orgId);
+    pendingOrgs = pendingOrgs.filter(o => o.id !== orgId);
+    renderPendingSection();
+    showAlert('alertBox', '✓ Organisation approved and notified. They can now sign in.', 'success');
+  } catch(e) {
+    showAlert('alertBox', 'Error: ' + e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✓ Approve'; }
+  }
+}
+
+// Close modal on backdrop click
+document.addEventListener('click', e => {
+  if (e.target.id === 'rejectModal') closeRejectModal();
+});
+
+// ── Active org cards ──────────────────────────────
+function filterOrgs() {
+  const q   = document.getElementById('srch')?.value.toLowerCase() || '';
+  const ind = document.getElementById('fInd')?.value || '';
+  let res = allOrgs;
+  if (q)   res = res.filter(o => [o.org_name, o.industry, o.required_skills, o.description].join(' ').toLowerCase().includes(q));
+  if (ind) res = res.filter(o => (o.industry || '').toLowerCase() === ind.toLowerCase());
+  renderOrgCards(res);
+}
+
+function renderOrgCards(orgs) {
+  document.getElementById('orgCount').textContent = `${orgs.length} / ${allOrgs.length} active organisation(s)`;
+  if (!orgs.length) {
+    document.getElementById('orgGrid').innerHTML = `<div class="empty"><h3>No organisations found</h3><p>Try a different search or filter.</p></div>`;
+    return;
+  }
+  const cards = orgs.map(o => {
+    const skills = split(o.required_skills);
+    const tags   = skills.slice(0, 5).map(s => `<span class="tag">${esc(s)}</span>`).join('');
+    const extra  = skills.length > 5 ? `<span class="tag">+${skills.length - 5}</span>` : '';
+    return `<div class="card hover">
+      <div class="d-flex align-center justify-between mb-2">
+        <div class="d-flex align-center gap-2">
+          <div class="av av-green av-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18V7H3z"/><path d="M7 21V11"/><path d="M12 21V11"/><path d="M17 21V11"/></svg>
+          </div>
+          <div>
+            <h3 class="mb-0 text-md">${esc(o.org_name || 'Unnamed')}</h3>
+            <p class="text-xs text-muted">${esc(o.industry || 'Industry not set')}</p>
+          </div>
+        </div>
+        <span class="badge badge-blue">${o.positions || 1} pos.</span>
+      </div>
+      ${o.description ? `<p class="text-sm text-ink2 leading-loose mb-2">${esc(o.description.slice(0, 130))}${o.description.length > 130 ? '…' : ''}</p>` : ''}
+      <p class="text-xs text-muted mb-2 text-uppercase">Required Skills</p>
+      <div class="tags mb-2">${tags}${extra}${!o.required_skills ? '<span class="text-xs text-muted">None specified</span>' : ''}</div>
+      ${o.contact_person || o.phone
+        ? `<div class="divider"></div><p class="text-xs text-muted">📞 ${esc(o.contact_person || '')}${o.phone ? ' · ' + esc(o.phone) : ''}</p>`
+        : ''}
+    </div>`;
+  }).join('');
+  document.getElementById('orgGrid').innerHTML = `<div class="card-grid">${cards}</div>`;
+}
+</script>
+</body>
+</html>
