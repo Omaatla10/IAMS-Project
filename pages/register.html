@@ -34,7 +34,7 @@
         <span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
         </span>
-        <div><h4>Students</h4><p>List your skills, set your location preference, and get matched to the best fit automatically.</p></div>
+         <div><h4>Students</h4><p>Create your account, complete your profile, and get matched to the best fit automatically.</p></div>
       </div>
       <div class="auth-perk">
         <span class="icon-wrap" style="display:inline-flex;align-items:center;justify-content:center;">
@@ -68,7 +68,7 @@
               <div class="role-opt"><input type="radio" name="role" id="rs" value="student" required><label for="rs"><span class="re"></span>Student</label></div>
               <div class="role-opt"><input type="radio" name="role" id="ro" value="organization"><label for="ro"><span class="re"></span>Organisation</label></div>
             </div>
-            <p id="roleNoteStudent" class="role-note">Upload your CV and transcript. Set your location preference so the matching algorithm can prioritise suitable organisations.</p>
+             <p id="roleNoteStudent" class="role-note">After creating your account, complete your student profile with your preferences and documents.</p>
             <p id="roleNoteOrg" class="role-note">Organisation registrations are reviewed and approved by the coordinator before you can sign in.</p>
           </div>
 
@@ -110,27 +110,6 @@
             <p class="upload-hint">Remember this answer exactly — it will be used to verify your identity.</p>
           </div>
 
-          <!-- Student-only fields -->
-          <div id="studentFields" style="display:none">
-            <hr class="section-divider">
-            <p class="text-sm text-muted mb-2" style="font-weight:600">Student Details</p>
-            <div class="form-group">
-              <label class="form-label" for="locationPref">Location Preference <span style="font-weight:400;opacity:.7">(optional)</span></label>
-              <input type="text" id="locationPref" class="form-control" placeholder="e.g. Gaborone, Francistown, Maun…">
-              <p class="upload-hint">Helps match you with organisations in your preferred area.</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="cvFile">CV / Résumé <span style="font-weight:400;opacity:.7">(optional — PDF or Word)</span></label>
-              <input type="file" id="cvFile" class="form-control" accept=".pdf,.doc,.docx">
-              <p class="upload-hint">Upload your CV so coordinators and organisations can review your background.</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="transcriptFile">Academic Transcript <span style="font-weight:400;opacity:.7">(optional — PDF)</span></label>
-              <input type="file" id="transcriptFile" class="form-control" accept=".pdf">
-              <p class="upload-hint">Your official academic transcript helps with GPA-based matching.</p>
-            </div>
-          </div>
-
           <div class="auth-btn-wrap">
             <button type="submit" class="btn btn-primary btn-full btn-lg">Create Account →</button>
           </div>
@@ -157,13 +136,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/app.js"></script>
 <script>
-// Show/hide role-specific fields
+// Show/hide role-specific notes
 document.querySelectorAll('input[name="role"]').forEach(r => {
   r.addEventListener('change', () => {
     const role = r.value;
     document.getElementById('roleNoteStudent').classList.toggle('show', role === 'student');
     document.getElementById('roleNoteOrg').classList.toggle('show', role === 'organization');
-    document.getElementById('studentFields').style.display = role === 'student' ? 'block' : 'none';
   });
 });
 
@@ -189,26 +167,7 @@ async function doRegister() {
     const extras = { security_question: secQ, security_answer: secA };
 
     if (role === 'student') {
-      extras.location_preference = document.getElementById('locationPref').value.trim();
-      const cvFile         = document.getElementById('cvFile').files[0];
-      const transcriptFile = document.getElementById('transcriptFile').files[0];
-
-      // Register first to get uid, then upload files
-      const user = await registerUser(email, pw, role, extras);
-
-      if (cvFile) {
-        try {
-          extras.cv_url = await saveCVFile(user.id, cvFile);
-          await _q(() => _sb.from('students').update({ cv_url: extras.cv_url }).eq('user_id', user.id));
-        } catch(e) { console.warn('CV upload failed:', e.message); }
-      }
-      if (transcriptFile) {
-        try {
-          extras.transcript_url = await saveTranscriptFile(user.id, transcriptFile);
-          await _q(() => _sb.from('students').update({ transcript_url: extras.transcript_url }).eq('user_id', user.id));
-        } catch(e) { console.warn('Transcript upload failed:', e.message); }
-      }
-
+      await registerUser(email, pw, role, extras);
       window.location.href = 'profile.html?new=1';
       return;
     }
