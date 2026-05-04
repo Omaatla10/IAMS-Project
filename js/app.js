@@ -649,7 +649,7 @@ async function confirmPlacement(id) {
 
 async function rejectPlacement(id, reason = '') {
   const { error: upErr } = await _sb.from('placements').update({ status: 'rejected', rejection_reason: reason }).eq('id', id);
-  if (upErr) { console.error('rejectPlacement update error:', upErr.message); return; }
+  if (upErr) { console.error('rejectPlacement update error:', upErr.message); throw new Error(upErr.message); }
 
   const rows = await _q(() => _sb.from('placements').select('*').eq('id', id));
   const p = rows[0];
@@ -673,7 +673,7 @@ async function rejectPlacement(id, reason = '') {
 // Revoke a confirmed placement (coordinator action)
 async function revokePlacement(id, reason = '') {
   const { error: upErr } = await _sb.from('placements').update({ status: 'revoked', rejection_reason: reason }).eq('id', id);
-  if (upErr) { console.error('revokePlacement update error:', upErr.message); return; }
+  if (upErr) { console.error('revokePlacement update error:', upErr.message); throw new Error(upErr.message); }
 
   const rows = await _q(() => _sb.from('placements').select('*').eq('id', id));
   const p = rows[0];
