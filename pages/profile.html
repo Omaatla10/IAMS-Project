@@ -76,6 +76,7 @@ function renderProfile() {
       <div class="form-section-title mt-4">Attachment Preferences</div>
       <div class="form-group"><label class="form-label">Skills</label><input id="f_skills" class="form-control" value="${p.skills||''}" placeholder="e.g. Python, MySQL, JavaScript, HTML"><p class="form-hint">Comma-separated. Matched against organization requirements during placement.</p></div>
       <div class="form-group"><label class="form-label">Industry Preferences</label><input id="f_preferences" class="form-control" value="${p.preferences||''}" placeholder="e.g. Technology, Finance, Healthcare"><p class="form-hint">Comma-separated industry types you prefer for your attachment.</p></div>
+      <div class="form-group"><label class="form-label">Location Preference</label><input id="f_locationPref" class="form-control" value="${p.location_preference||''}" placeholder="e.g. Gaborone, Francistown, Maun"><p class="form-hint">Preferred city or area for your attachment placement.</p></div>
       <div class="form-section-title mt-4">Documents</div>
       <div class="form-group">
         <label class="form-label">Curriculum Vitae (CV)</label>
@@ -152,7 +153,7 @@ async function saveProfile() {
   if(btn){btn.textContent='Saving…';btn.disabled=true;}
   try {
     if (u.role==='student') {
-      await saveStudentProfile(u.id, {full_name:g('f_fullName'),student_id:g('f_studentId'),phone:g('f_phone'),department:g('f_department'),gpa:g('f_gpa'),skills:g('f_skills'),preferences:g('f_preferences')});
+      await saveStudentProfile(u.id, {full_name:g('f_fullName'),student_id:g('f_studentId'),phone:g('f_phone'),department:g('f_department'),gpa:g('f_gpa'),skills:g('f_skills'),preferences:g('f_preferences'),location_preference:g('f_locationPref')});
     } else if (u.role==='organization') {
       await saveOrgProfile(u.id, {org_name:g('f_orgName'),contact_person:g('f_contactPerson'),phone:g('f_phone'),industry:g('f_industry'),positions:parseInt(g('f_positions'))||1,required_skills:g('f_requiredSkills'),description:g('f_description')});
     } else {
