@@ -40,12 +40,12 @@ async function renderPlacements() {
     if (isCoord) {
       if (p.status === 'pending') {
         actions = `
-          <button class="btn btn-success btn-sm" onclick="doConfirm('${p.id}')">✓ Confirm</button>
-          <button class="btn btn-danger btn-sm" onclick="openModal('reject','${p.id}')">✗ Reject</button>`;
+          <button type="button" class="btn btn-success btn-sm" onclick="doConfirm('${p.id}')">✓ Confirm</button>
+          <button type="button" class="btn btn-danger btn-sm" onclick="openPlacementActionModal('reject','${p.id}')">✗ Reject</button>`;
       } else if (p.status === 'confirmed') {
         actions = `
-          <button class="btn btn-outline btn-sm" onclick="openModal('revoke','${p.id}')">🔄 Revoke</button>
-          <button class="btn btn-blue btn-sm" onclick="doSendToOrg('${p.id}')" title="Send placement notification to organisation"
+          <button type="button" class="btn btn-outline btn-sm" onclick="openPlacementActionModal('revoke','${p.id}')">🔄 Revoke</button>
+          <button type="button" class="btn btn-blue btn-sm" onclick="doSendToOrg('${p.id}')" title="Send placement notification to organisation"
             style="padding:.3rem .7rem;font-size:.78rem">
             ${p.org_notified ? '📢 Re-notify Org' : '📢 Notify Org'}
           </button>`;
@@ -176,7 +176,7 @@ async function doSendToOrg(id) {
 let _modalId = null;
 let _modalMode = null; // 'reject' | 'revoke'
 
-function openModal(mode, id) {
+function openPlacementActionModal(mode, id) {
   _modalId   = id;
   _modalMode = mode;
   const isRevoke = mode === 'revoke';
@@ -185,7 +185,7 @@ function openModal(mode, id) {
     ? 'Revoking will remove the confirmed status. Both the student and the organisation will be notified.'
     : 'Provide an optional reason. The student will be notified automatically.';
   document.getElementById('modalConfirmBtn').textContent  = isRevoke ? 'Revoke Placement' : 'Confirm Rejection';
-  document.getElementById('modalConfirmBtn').className    = isRevoke ? 'btn btn-warning' : 'btn btn-danger';
+  document.getElementById('modalConfirmBtn').className    = 'btn btn-danger';
   document.getElementById('actionReason').value           = '';
   document.getElementById('actionModal').style.display    = 'flex';
   document.getElementById('actionReason').focus();
@@ -205,15 +205,18 @@ async function submitAction() {
   confirmBtn.textContent = 'Processing…';
 
   try {
+    let successMessage;
+    let successType = 'info';
     if (_modalMode === 'revoke') {
       await revokePlacement(_modalId, reason);
-      showAlert('alertBox', '🔄 Placement revoked. Student and organisation notified.', 'info');
+      successMessage = '🔄 Placement revoked. Student and organisation notified.';
     } else {
       await rejectPlacement(_modalId, reason);
-      showAlert('alertBox', 'Placement rejected. Student notified.', 'info');
+      successMessage = 'Placement rejected. Student notified.';
     }
     closeModal();
     await renderPlacements();
+    showAlert('alertBox', successMessage, successType);
   } catch(e) {
     showAlert('alertBox', 'Error: ' + e.message, 'error');
     confirmBtn.disabled = false;
